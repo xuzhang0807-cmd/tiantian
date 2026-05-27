@@ -1,0 +1,33 @@
+# TianTian Ops - Node.js Project Config
+
+name: node
+type: docker-web
+description: Node.js 应用
+
+manifest:
+  container:
+    port: 3000
+  nginx:
+    enabled: true
+  resources:
+    cpu: 1
+    memory: 256
+
+compose:
+  services:
+    app:
+      image: node:20-alpine
+      container_name: tt-node
+      restart: unless-stopped
+      working_dir: /app
+      command: node server.js
+      ports:
+        - '127.0.0.1:3000:3000'
+      volumes:
+        - ./data:/app
+        - ./logs:/var/log/app
+      logging:
+        driver: json-file
+        options:
+          max-size: '10m'
+          max-file: '3'

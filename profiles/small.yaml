@@ -1,0 +1,23 @@
+# TianTian Ops - Small Profile
+# CPU ≤ 2, MEM ≤ 2048 MB
+
+name: small
+max_projects: 2
+
+recommended:
+  - nginx
+  - 静态站点
+  - 轻量 Node.js (≤ 256MB)
+  - Redis
+
+forbidden:
+  - PostgreSQL
+  - MySQL/MariaDB
+  - AI 推理服务
+  - Elasticsearch
+  - 大型框架 (>= 1GB)
+
+limits:
+  max_container_memory: 512
+  max_containers: 4
+  swap_recommended: true

@@ -1,0 +1,24 @@
+# TianTian Ops - Large Profile
+# CPU ≤ 8, MEM ≤ 8192 MB
+
+name: large
+max_projects: 10
+
+recommended:
+  - nginx
+  - WordPress
+  - Node.js
+  - PostgreSQL
+  - MySQL/MariaDB
+  - Redis
+  - MongoDB
+  - 静态站点
+  - Docker Registry
+
+forbidden:
+  - 大型 AI 推理 (需 GPU)
+
+limits:
+  max_container_memory: 2048
+  max_containers: 20
+  swap_recommended: false
