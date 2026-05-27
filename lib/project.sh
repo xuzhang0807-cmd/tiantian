@@ -177,8 +177,9 @@ project_generate_compose() {
     local port="${4:-8080}"
     local domain="${5:-}"
     
-    # 尝试加载预定义模板
-    local template="${PROJECTS_CONFIG_DIR}/${type}.yaml"
+    # 尝试加载预定义模板：先用项目名匹配，再回退到类型匹配
+    local template="${PROJECTS_CONFIG_DIR}/${name}.yaml"
+    [ -f "$template" ] || template="${PROJECTS_CONFIG_DIR}/${type}.yaml"
     if [ -f "$template" ]; then
         print_info "使用模板: ${template}"
         python3 -c "
@@ -204,11 +205,18 @@ db_root_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=24
 compose_str = compose_str.replace('{{DB_PASSWORD}}', db_pass)
 compose_str = compose_str.replace('{{DB_ROOT_PASSWORD}}', db_root_pass)
 
-with open('${dir}/docker-compose.yml', 'w') as f:
+out_path = '${dir}/docker-compose.yml'
+with open(out_path, 'w') as f:
     f.write(compose_str)
-" 2>/dev/null
+
+# 保存密码到 .env
+with open('${dir}/.env', 'w') as f:
+    f.write(f'DB_PASSWORD={db_pass}\n')
+    f.write(f'DB_ROOT_PASSWORD={db_root_pass}\n')
+
+print(f'OK: written {len(compose_str)} bytes to {out_path}')
+" || { print_warn "compose 模板渲染失败"; return 1; }
         
-        # 保存生成的密码到 .env
         print_success "docker-compose.yml 已生成（含随机密码）"
         return 0
     fi
@@ -250,7 +258,7 @@ project_read_manifest() {
 import yaml,json
 with open('${dir}/manifest.yaml') as f:
     d = yaml.safe_load(f)
-print(json.dumps(d, ensure_ascii=False))
+print(json.dumps(d, ensure_ascii=False, default=str))
 " 2>/dev/null
     fi
 }

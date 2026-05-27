@@ -34,6 +34,7 @@ log_error() { _log ERROR "$@"; echo -e "${RED}[ERROR]${NC} $*" >&2; }
 print_success() { echo -e "${GREEN}✓${NC} $*"; }
 print_fail()    { echo -e "${RED}✗${NC} $*"; }
 print_info()    { echo -e "${BLUE}→${NC} $*"; }
+print_warn()    { echo -e "${YELLOW}⚠${NC} $*"; }
 print_header()  { echo -e "\n${BOLD}${CYAN}═══ $* ═══${NC}\n"; }
 print_title()   { echo -e "${BOLD}${BLUE}$*${NC}"; }
 
