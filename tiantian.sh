@@ -7,13 +7,19 @@
 
 set -e
 
-TT_HOME="/opt/tiantian"
+TT_HOME="${TT_HOME:-/opt/tiantian}"
 export TT_HOME
 
 # 加载核心库
 source "${TT_HOME}/lib/core.sh"
 source "${TT_HOME}/lib/detect.sh"
 source "${TT_HOME}/lib/profile.sh"
+source "${TT_HOME}/lib/input.sh"
+source "${TT_HOME}/lib/ports.sh"
+source "${TT_HOME}/lib/preset.sh"
+source "${TT_HOME}/lib/secrets.sh"
+source "${TT_HOME}/lib/backup.sh"
+source "${TT_HOME}/lib/doctor.sh"
 source "${TT_HOME}/lib/health.sh"
 source "${TT_HOME}/lib/nginx.sh"
 source "${TT_HOME}/lib/cert.sh"
@@ -120,7 +126,8 @@ deploy_interactive() {
     print_title "部署新项目"
     echo ""
     
-    read -p "  项目名称 (如 wordpress): " project_name
+    read -r -p "  项目名称 (如 wordpress/toko): " project_name
+    project_name="$(preset_normalize_name "$project_name")"
     if [ -z "$project_name" ]; then
         print_fail "项目名称不能为空"
         return 1
@@ -128,38 +135,41 @@ deploy_interactive() {
     
     # 检查是否已存在
     if [ -f "${PROJECTS_BASE}/${project_name}/manifest.yaml" ]; then
-        print_fail "项目 ${project_name} 已存在"
-        return 1
+        print_warn "项目 ${project_name} 已存在，继续部署前会先创建备份"
     fi
     
-    read -p "  项目类型 [wordpress/node/static]: " project_type
-    project_type="${project_type:-wordpress}"
+    local default_type default_domain port_group suggested_port plan_json
+    default_type="$(preset_default_type "$project_name")"
+    project_type="$(prompt_optional "项目类型" "$default_type")"
+    project_type="${project_type:-$default_type}"
+    port_group="$(preset_port_group "$project_name" "$project_type")"
+    default_domain="$(preset_default_domain "$project_name")"
+    domain="$(prompt_domain "域名（回车采用默认；输入 none 跳过 HTTPS）" true "$default_domain")"
+    [ "$domain" = "none" ] && domain=""
+    if [ -n "$domain" ]; then
+        check_domain_dns "$domain" || print_warn "DNS 未完全通过，证书申请可能失败；可先继续本地部署"
+    fi
     
-    read -p "  域名 (如 blog.example.com，留空跳过): " domain
-    
-    read -p "  容器端口 [8085]: " port
-    port="${port:-8085}"
+    suggested_port="$(preset_default_port "$project_name" "$project_type" 2>/dev/null || echo 8085)"
+    port="$(prompt_port "容器入口端口" "$suggested_port")"
+    plan_json="$(preset_build_plan_json "$project_name" "$project_type" "$domain" "$port")"
     
     echo ""
-    print_info "部署配置确认："
-    echo "  名称: ${project_name}"
-    echo "  类型: ${project_type}"
-    echo "  域名: ${domain:-无}"
-    echo "  端口: ${port}"
+    print_info "部署计划（可回车采用默认，也可手动覆盖后再确认）："
+    preset_show_plan "$plan_json"
     echo ""
     
-    if ! confirm "确认部署？"; then
+    if ! confirm "确认按以上计划部署？"; then
         print_info "取消部署"
         return 0
     fi
     
-    # 设置 manifest
-    local dir="${PROJECTS_BASE}/${project_name}"
-    mkdir -p "${dir}"/{data,logs,backups}
-    # manifest written by project_deploy
+    local plan_project_dir
+    plan_project_dir="$(preset_plan_get "$plan_json" "project_dir")"
+    secret_warn_missing_local_config "$project_type" "$plan_project_dir" || return 1
     
     # 部署
-    project_deploy "$project_name" "$project_type" "$domain" "$port"
+    project_deploy "$project_name" "$project_type" "$domain" "$port" "$plan_project_dir"
 }
 
 # --- 主循环（交互模式）---
@@ -305,6 +315,22 @@ main_loop() {
 # --- 命令行模式 ---
 run_command() {
     local cmd="$1"; shift
+    case "$cmd" in
+        jc) cmd="doctor" ;;
+        zt) cmd="health" ;;
+        hx) cmd="profile" ;;
+        zs) cmd="cert" ;;
+        wg) cmd="nginx" ;;
+        bs) cmd="deploy" ;;
+        sc) cmd="remove" ;;
+        xm) cmd="list" ;;
+        bf) cmd="backup" ;;
+        hf) cmd="restore" ;;
+        rq) cmd="docker" ;;
+        rj) cmd="logs" ;;
+        dk) cmd="ports" ;;
+        gx) cmd="update" ;;
+    esac
     
     case "$cmd" in
         health)
@@ -312,6 +338,9 @@ run_command() {
             ;;
         detect|check)
             detect_all
+            ;;
+        doctor)
+            doctor_check
             ;;
         profile|画像)
             profile_show
@@ -345,11 +374,39 @@ run_command() {
             esac
             ;;
         deploy)
+            local plan_only="false"
+            if [ "${1:-}" = "--plan" ] || [ "${1:-}" = "plan" ]; then
+                plan_only="true"
+                shift
+            fi
             local project_name="${1:?请指定项目名称}"
-            local project_type="${2:-$project_name}"
-            local project_domain="${3:-}"
-            local project_port="${4:-8080}"
-            project_deploy "$project_name" "$project_type" "$project_domain" "$project_port"
+            project_name="$(preset_normalize_name "$project_name")"
+            preset_validate_project_name "$project_name" || die "项目名称不合法：只能使用小写字母、数字、中划线"
+            local project_type="${2:-$(preset_default_type "$project_name")}" 
+            local project_domain="${3:-$(preset_default_domain "$project_name")}" 
+            [ "$project_domain" = "none" ] && project_domain=""
+            project_domain="$(normalize_domain "$project_domain")"
+            if [ -n "$project_domain" ]; then
+                validate_domain "$project_domain" || die "域名不合法：${project_domain}"
+            fi
+            local port_group
+            port_group="$(preset_port_group "$project_name" "$project_type")"
+            local project_port="${4:-}"
+            if [ -z "$project_port" ]; then
+                project_port="$(preset_default_port "$project_name" "$project_type")" || return 1
+            fi
+            validate_port "$project_port" || die "端口不合法：${project_port}"
+            local plan_json
+            plan_json="$(preset_build_plan_json "$project_name" "$project_type" "$project_domain" "$project_port")"
+            if [ "$plan_only" = "true" ]; then
+                print_header "部署计划"
+                preset_show_plan "$plan_json"
+                return 0
+            fi
+            local plan_project_dir
+            plan_project_dir="$(preset_plan_get "$plan_json" "project_dir")"
+            secret_warn_missing_local_config "$project_type" "$plan_project_dir" || return 1
+            project_deploy "$project_name" "$project_type" "$project_domain" "$project_port" "$plan_project_dir"
             ;;
         remove|delete)
             local project_name="${1:?请指定项目名称}"
@@ -359,10 +416,41 @@ run_command() {
             project_list
             ;;
         backup)
-            print_info "备份功能开发中"
+            case "${1:-list}" in
+                create|add)
+                    backup_project "${2:?请指定项目}"
+                    ;;
+                list|ls)
+                    backup_list "${2:-}"
+                    ;;
+                root)
+                    backup_root_info
+                    ;;
+                *)
+                    echo "用法: tt backup [create <project>|list [project]|root]"
+                    ;;
+            esac
             ;;
         restore)
-            print_info "恢复功能开发中"
+            print_warn "恢复功能将在 v0.3 接入；当前可先从 /home/tt-backups 手动解包恢复"
+            ;;
+        configure|config)
+            secret_configure_blueprint "${1:?请指定 blueprint 名称}" "${2:-}"
+            ;;
+        ports)
+            case "${1:-list}" in
+                list|ls) ports_list ;;
+                alloc)
+                    ports_allocate "${2:?请指定项目}" "${3:-future}" "${4:-main}"
+                    ;;
+                release)
+                    ports_release_project "${2:?请指定项目}"
+                    ;;
+                *) echo "用法: tt ports [list|alloc <project> [group] [key]|release <project>]" ;;
+            esac
+            ;;
+        logs)
+            docker_logs "${PROJECTS_BASE}/${1:?请指定项目}" "${2:-50}"
             ;;
         docker)
             case "${1:-}" in
@@ -409,14 +497,23 @@ run_command() {
             echo "  nginx list          列出站点"
             echo "  nginx reload        重载 nginx"
             echo "  nginx add <d> <p>   添加站点"
-            echo "  deploy <name> [type] 部署项目"
-            echo "  remove <name>       删除项目"
+            echo "  deploy <name> [type] [domain|none] [port] 部署项目"
+            echo "  deploy --plan <name>  仅生成预设部署计划"
+            echo "  configure <blueprint> [dir]  交互生成本地 .env 配置"
+            echo "  remove <name>       备份后删除项目"
+            echo "  backup create <name> 备份项目"
+            echo "  backup list [name]  列出备份"
+            echo "  ports               查看端口池"
             echo "  list                列出项目"
             echo "  docker ps           容器列表"
             echo "  docker logs <name>  查看日志"
             echo "  install             初始化安装"
             echo "  version             版本信息"
             echo "  help                帮助信息"
+            echo ""
+            echo "拼音快捷命令:"
+            echo "  jc=检测  zt=状态  bs=部署  sc=删除  bf=备份  hf=恢复"
+            echo "  xm=项目  rq=容器  rj=日志  zs=证书  wg=网关  dk=端口"
             echo ""
             echo "不带参数运行进入交互菜单。"
             ;;

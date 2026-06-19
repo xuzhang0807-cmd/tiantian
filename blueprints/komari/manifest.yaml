@@ -1,0 +1,41 @@
+name: komari
+type: komari
+version: 1
+summary: Komari monitor behind nginx with persistent /app/data bind mount.
+
+defaults:
+  project_dir: /home/docker/komari
+  data_dir: /home/komari/data
+  domain: komari.kazerush.xyz
+  port_group: komari
+  ports:
+    web: 8083
+    container: 25774
+  nginx:
+    enabled: true
+    cert_enabled: true
+    https_listen: 127.0.0.1:4443
+    acme_webroot: /home/web/letsencrypt
+    config_dir: /home/web/conf.d
+    cert_dir: /home/web/certs
+
+services:
+  - name: komari
+    role: monitor
+    image: ghcr.io/komari-monitor/komari:latest
+    local_port: 8083
+    container_port: 25774
+    data_paths:
+      - /home/komari/data:/app/data
+
+health_checks:
+  local:
+    - http://127.0.0.1:8083/
+  external:
+    - https://komari.kazerush.xyz
+
+git_policy:
+  never_commit:
+    - /home/komari/data
+    - sqlite databases
+    - backups

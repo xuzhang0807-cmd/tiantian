@@ -31,6 +31,7 @@ nginx_check_gateway() {
 # --- 渲染 nginx 站点配置 ---
 nginx_render_site() {
     local domain="$1"
+    domain="$(normalize_domain "$domain")"
     local port="$2"
     local conf_file="${TT_NGINX_CONF_DIR}/${domain}.conf"
     

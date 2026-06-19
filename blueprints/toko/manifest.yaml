@@ -1,0 +1,107 @@
+name: toko
+type: toko
+version: 1
+summary: Toko lightweight shop stack with storefront, backend API, PostgreSQL, Redis, uploads, and nginx path routing.
+
+defaults:
+  project_dir: /home/docker/shop
+  source_dir: /home/docker/shop
+  domain: toko.kazerush.xyz
+  port_group: toko
+  ports:
+    storefront: 3000
+    backend: 3001
+  paths:
+    shop: /shop
+    api: /shop-api/
+    uploads: /shop-uploads/
+  nginx:
+    enabled: true
+    cert_enabled: true
+    https_listen: 127.0.0.1:4443
+    acme_webroot: /home/web/letsencrypt
+    config_dir: /home/web/conf.d
+    cert_dir: /home/web/certs
+  data:
+    postgres: postgres-data
+    redis: redis-data
+    uploads: uploads
+
+services:
+  - name: shop-postgres
+    role: database
+    image: postgres:15-alpine
+    data_paths:
+      - ./postgres-data:/var/lib/postgresql/data
+  - name: shop-redis
+    role: cache
+    image: redis:7-alpine
+    data_paths:
+      - ./redis-data:/data
+  - name: shop-backend
+    role: api
+    build_context: ./backend-v2
+    local_port: 3001
+    env_file: ./backend-v2/.env
+    data_paths:
+      - ./uploads:/app/uploads
+  - name: shop-storefront
+    role: storefront
+    build_context: ./storefront
+    local_port: 3000
+
+required_secrets:
+  - POSTGRES_PASSWORD
+  - JWT_SECRET
+  - COOKIE_SECRET
+  - ADMIN_PASSWORD
+  - TELEGRAM_BOT_TOKEN
+  - TELEGRAM_CHAT_ID
+  - REVALIDATE_SECRET
+
+health_checks:
+  local:
+    - http://127.0.0.1:3000/shop
+    - http://127.0.0.1:3001/health
+  external:
+    - https://toko.kazerush.xyz/shop
+    - https://toko.kazerush.xyz/shop-api/health
+
+backup:
+  include:
+    - docker-compose.yml
+    - .env
+    - backend-v2/.env
+    - storefront/.env
+    - uploads
+    - postgres_dump
+    - redis-data
+  exclude:
+    - node_modules
+    - .next
+    - .git
+    - backups
+    - logs
+
+git_policy:
+  commit:
+    - manifest.yaml
+    - compose.yml.tpl
+    - env.example
+    - backend-v2.env.example
+    - storefront.env.example
+    - nginx.conf.tpl
+    - health.sh
+    - backup.sh
+    - restore.sh
+    - README.md
+  never_commit:
+    - .env
+    - backend-v2/.env
+    - storefront/.env
+    - postgres-data
+    - redis-data
+    - uploads
+    - backups
+    - certs
+    - private keys

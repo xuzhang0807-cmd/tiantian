@@ -1,0 +1,41 @@
+# Runtime state
+logs/
+state/*
+!state/.gitkeep
+profiles/current.txt
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.crt
+*.csr
+*.p12
+*.pfx
+id_rsa*
+
+# Backups and data exports
+backups/
+*.bak
+*.backup
+*.dump
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+
+# Generated project artifacts
+/home/
+*.generated
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp

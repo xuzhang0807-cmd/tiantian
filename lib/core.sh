@@ -4,10 +4,13 @@
 # 基础函数库：日志、错误处理、命令执行、颜色输出
 # =============================================================================
 
-TT_VERSION="0.1.0"
-TT_HOME="/opt/tiantian"
+TT_VERSION="0.2.0"
+TT_HOME="${TT_HOME:-/opt/tiantian}"
 TT_LOG="${TT_HOME}/logs/tt.log"
 TT_STATE="${TT_HOME}/state/projects.json"
+TT_BACKUP_ROOT="${TT_BACKUP_ROOT:-/home/tt-backups}"
+TT_SECRETS_ROOT="${TT_SECRETS_ROOT:-/home/tt-secrets}"
+TT_CACHE_ROOT="${TT_CACHE_ROOT:-/home/tt-cache}"
 
 # --- 颜色 ---
 RED='\033[0;31m'
@@ -98,31 +101,58 @@ confirm() {
 # 极简 JSON 读写（不依赖 jq，纯 bash）
 state_init() {
     if [ ! -f "$TT_STATE" ]; then
-        echo '{"projects":{},"updated":"","version":"0.1"}' > "$TT_STATE"
+        echo '{"projects":{},"updated":"","version":"0.2"}' > "$TT_STATE"
     fi
 }
 
 state_set() {
-    # state_set key value
+    # state_set dotted.key '{"json":"value"}'
     local key="$1" val="$2"
     local tmp="${TT_STATE}.tmp"
-    python3 -c "
-import json,sys
-with open('$TT_STATE') as f: d = json.load(f)
-d['$key'] = json.loads('''$val''')
-d['updated'] = '$(date -Iseconds)'
-with open('$tmp','w') as f: json.dump(d,f,indent=2)
-" 2>/dev/null && mv "$tmp" "$TT_STATE"
+    mkdir -p "$(dirname "$TT_STATE")"
+    python3 - "$TT_STATE" "$tmp" "$key" "$val" <<'PY'
+import json, sys, datetime
+path, tmp, key, raw = sys.argv[1:5]
+try:
+    with open(path) as f:
+        data = json.load(f)
+except FileNotFoundError:
+    data = {"projects": {}, "updated": "", "version": "0.2"}
+value = json.loads(raw)
+node = data
+parts = key.split('.')
+for part in parts[:-1]:
+    child = node.get(part)
+    if not isinstance(child, dict):
+        child = {}
+        node[part] = child
+    node = child
+node[parts[-1]] = value
+data['updated'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+with open(tmp, 'w') as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+PY
+    local rc=$?
+    [ "$rc" -eq 0 ] && mv "$tmp" "$TT_STATE"
+    return "$rc"
 }
 
 state_get() {
-    # state_get key
+    # state_get dotted.key
     local key="$1"
-    python3 -c "
-import json
-with open('$TT_STATE') as f: d = json.load(f)
-print(json.dumps(d.get('$key','')))
-" 2>/dev/null
+    python3 - "$TT_STATE" "$key" <<'PY' 2>/dev/null
+import json, sys
+path, key = sys.argv[1:3]
+with open(path) as f:
+    data = json.load(f)
+node = data
+for part in key.split('.'):
+    if not isinstance(node, dict) or part not in node:
+        node = ''
+        break
+    node = node[part]
+print(json.dumps(node, ensure_ascii=False))
+PY
 }
 
 # --- 工具函数 ---

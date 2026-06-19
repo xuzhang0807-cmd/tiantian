@@ -6,7 +6,7 @@
 
 CERT_DIR="/home/web/certs"
 LETSENCRYPT_DIR="/home/web/letsencrypt"
-WEBROOT="/home/web/html"
+WEBROOT="/home/web/letsencrypt"
 HOOK_DIR="/etc/letsencrypt/renewal-hooks/deploy"
 TT_SYNC_HOOK="${HOOK_DIR}/tt-sync.sh"
 
@@ -41,6 +41,7 @@ cert_install() {
 # --- 申请证书 ---
 cert_obtain() {
     local domain="$1"
+    domain="$(normalize_domain "$domain")"
     local email="${2:-admin@${domain}}"
     
     print_header "申请证书: ${domain}"
@@ -67,6 +68,7 @@ cert_obtain() {
 # --- 同步证书到 /home/web/certs ---
 cert_sync() {
     local domain="$1"
+    domain="$(normalize_domain "$domain")"
     local live_dir="/etc/letsencrypt/live/${domain}"
     
     if [ ! -d "$live_dir" ]; then
