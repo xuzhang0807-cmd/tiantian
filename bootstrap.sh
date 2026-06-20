@@ -28,17 +28,27 @@ if [ -f /etc/os-release ]; then
     echo "  系统: $PRETTY_NAME"
 fi
 
-# 检查 git
-if ! command -v git >/dev/null 2>&1; then
-    echo "  安装 git ..."
-    apt-get update -qq && apt-get install -y -qq git 2>/dev/null || {
-        yum install -y git 2>/dev/null || {
-            echo "  无法安装 git，请手动安装后重试"
-            exit 1
-        }
-    }
-    echo "  ✓ git 已安装"
-fi
+# 检查基础依赖
+ensure_pkg() {
+    local cmd="$1" pkg="$2"
+    command -v "$cmd" >/dev/null 2>&1 && return 0
+    echo "  安装 ${pkg} ..."
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get update -qq && apt-get install -y -qq "$pkg"
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y "$pkg"
+    elif command -v yum >/dev/null 2>&1; then
+        yum install -y "$pkg"
+    else
+        echo "  无法识别包管理器，请手动安装 ${pkg}"
+        return 1
+    fi
+}
+
+ensure_pkg git git || exit 1
+ensure_pkg curl curl || true
+ensure_pkg python3 python3 || true
+ensure_pkg tar tar || true
 
 # 克隆/更新
 if [ -d "$INSTALL_DIR/.git" ]; then
@@ -80,7 +90,7 @@ echo ""
 
 # 执行初始化检测
 cd "$INSTALL_DIR"
-bash tiantian.sh install 2>/dev/null || true
+bash tiantian.sh deps doctor || true
 
 echo ""
 echo "  ╔══════════════════════════════════════╗"

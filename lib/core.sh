@@ -12,6 +12,9 @@ TT_BACKUP_ROOT="${TT_BACKUP_ROOT:-/home/tt-backups}"
 TT_SECRETS_ROOT="${TT_SECRETS_ROOT:-/home/tt-secrets}"
 TT_CACHE_ROOT="${TT_CACHE_ROOT:-/home/tt-cache}"
 
+# Ensure runtime directories exist after a fresh Git clone.
+mkdir -p "$(dirname "$TT_LOG")" "$(dirname "$TT_STATE")" 2>/dev/null || true
+
 # --- 颜色 ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'

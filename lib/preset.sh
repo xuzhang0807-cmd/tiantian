@@ -76,10 +76,44 @@ preset_blueprint_default() {
     blueprint_dir="$(preset_blueprint_dir "$type")"
     [ -n "$blueprint_dir" ] || return 0
     python3 - "$blueprint_dir/manifest.yaml" "$key" <<'PY'
-import sys, yaml
+import sys
+
+def scalar(value):
+    value = value.strip().strip('"').strip("'")
+    if value.lower() == 'true':
+        return True
+    if value.lower() == 'false':
+        return False
+    if value.isdigit():
+        return int(value)
+    return value
+
+def parse_simple_yaml(path):
+    root = {}
+    stack = [(-1, root)]
+    for raw in open(path, encoding='utf-8'):
+        if not raw.strip() or raw.lstrip().startswith('#'):
+            continue
+        indent = len(raw) - len(raw.lstrip(' '))
+        line = raw.strip()
+        if ':' not in line:
+            continue
+        key, value = line.split(':', 1)
+        key = key.strip()
+        value = value.strip()
+        while stack and indent <= stack[-1][0]:
+            stack.pop()
+        parent = stack[-1][1]
+        if value == '':
+            node = {}
+            parent[key] = node
+            stack.append((indent, node))
+        else:
+            parent[key] = scalar(value)
+    return root
+
 try:
-    with open(sys.argv[1]) as f:
-        data = yaml.safe_load(f) or {}
+    data = parse_simple_yaml(sys.argv[1])
     node = data.get('defaults') or {}
     for part in sys.argv[2].split('.'):
         node = node.get(part, '') if isinstance(node, dict) else ''

@@ -19,6 +19,10 @@ source "${TT_HOME}/lib/ports.sh"
 source "${TT_HOME}/lib/preset.sh"
 source "${TT_HOME}/lib/secrets.sh"
 source "${TT_HOME}/lib/backup.sh"
+source "${TT_HOME}/lib/deps.sh"
+source "${TT_HOME}/lib/tools.sh"
+source "${TT_HOME}/lib/selftest.sh"
+source "${TT_HOME}/lib/upstream.sh"
 source "${TT_HOME}/lib/doctor.sh"
 source "${TT_HOME}/lib/health.sh"
 source "${TT_HOME}/lib/nginx.sh"
@@ -59,7 +63,8 @@ show_menu() {
     echo -e "  ${GREEN}6${NC}) 容器管理"
     echo -e "  ${GREEN}7${NC}) 监控巡检"
     echo -e "  ${GREEN}8${NC}) 备份恢复"
-    echo -e "  ${GREEN}9${NC}) 高级操作"
+    echo -e "  ${GREEN}9${NC}) 系统工具"
+    echo -e "  ${GREEN}10${NC}) 高级操作"
     echo ""
     echo -e "  ${GREEN}0${NC}) 退出"
     echo ""
@@ -116,6 +121,7 @@ show_advanced_menu() {
     echo -e "  ${GREEN}2${NC}) 部署证书自动同步 hook"
     echo -e "  ${GREEN}3${NC}) 更新 tt 系统"
     echo -e "  ${GREEN}4${NC}) 清理日志"
+    echo -e "  ${GREEN}5${NC}) 检查/安装依赖"
     echo -e "  ${GREEN}0${NC}) 返回"
     echo ""
 }
@@ -277,6 +283,9 @@ main_loop() {
                 echo "  可手动执行: docker exec <container> ... "
                 ;;
             9)
+                tools_menu
+                ;;
+            10)
                 while true; do
                     show_advanced_menu
                     read -p "  tt/advanced> " achoice
@@ -284,16 +293,16 @@ main_loop() {
                         1) cert_install ;;
                         2) cert_deploy_hook ;;
                         3) print_info "更新 tt 系统..."
-                           if [ -d "${TT_HOME}/.git" ]; then
-                               (cd "$TT_HOME" && git pull) || print_warn "git pull 失败"
-                           else
-                               print_warn "未检测到 git 仓库，请手动更新"
-                           fi
+                           tt_update_system
                            ;;
                         4) 
                            print_info "清理日志 ..."
                            find "${TT_HOME}/logs/" -name "*.log" -mtime +30 -delete 2>/dev/null
                            print_success "日志已清理"
+                           ;;
+                        5)
+                           deps_doctor || true
+                           confirm "是否安装缺失推荐依赖？" && deps_install recommended
                            ;;
                         0) break ;;
                         *) echo -e "  ${RED}无效选项${NC}" ;;
@@ -330,6 +339,10 @@ run_command() {
         rj) cmd="logs" ;;
         dk) cmd="ports" ;;
         gx) cmd="update" ;;
+        yl) cmd="deps" ;;
+        yilai) cmd="deps" ;;
+        gj) cmd="tools" ;;
+        cs) cmd="selftest" ;;
     esac
     
     case "$cmd" in
@@ -474,8 +487,54 @@ run_command() {
                     ;;
             esac
             ;;
+        deps|dependency|dependencies)
+            case "${1:-doctor}" in
+                doctor|check) deps_doctor ;;
+                install) deps_install "${2:-recommended}" ;;
+                versions|version) deps_versions ;;
+                *) echo "用法: tt deps [doctor|install [required|recommended|all]|versions]" ;;
+            esac
+            ;;
+        tools|tool)
+            case "${1:-menu}" in
+                menu) tools_menu ;;
+                resource|resources|info) tools_resource ;;
+                ports|port) tools_ports ;;
+                network|net) tools_network ;;
+                logs) tools_logs_recent "${2:-80}" ;;
+                clean|cleanup) tools_clean_cache ;;
+                update|upgrade) tools_system_update ;;
+                install) tools_install "${2:-}" ;;
+                swap)
+                    case "${2:-status}" in
+                        status|show) tools_swap_status ;;
+                        add|set) tools_swap_add "${3:-}" ;;
+                        *) echo "用法: tt tools swap [status|add <MB>]" ;;
+                    esac
+                    ;;
+                *) echo "用法: tt tools [resource|ports|network|logs|clean|update|install|swap]" ;;
+            esac
+            ;;
+        swap)
+            tools_swap_add "${1:-}"
+            ;;
+        selftest|test)
+            selftest_safe
+            ;;
+        upstream)
+            case "${1:-report}" in
+                sync|update) upstream_sync_kejilion ;;
+                report) upstream_report_kejilion "${2:-}" ;;
+                guard|check) upstream_guard_check ;;
+                *) echo "用法: tt upstream [sync|report|guard]" ;;
+            esac
+            ;;
+        update|upgrade)
+            tt_update_system
+            ;;
         install)
             install_tt
+            deps_doctor || true
             cert_install
             cert_deploy_hook
             print_success "TianTian Ops 初始化完成"
@@ -507,6 +566,17 @@ run_command() {
             echo "  list                列出项目"
             echo "  docker ps           容器列表"
             echo "  docker logs <name>  查看日志"
+            echo "  tools               系统工具菜单"
+            echo "  tools resource      资源概览"
+            echo "  tools ports         端口监听"
+            echo "  tools clean         清理缓存"
+            echo "  swap <MB>           设置 swap"
+            echo "  deps doctor         检查依赖"
+            echo "  deps install        安装缺失依赖"
+            echo "  upstream sync       同步 kejilion 参考脚本"
+            echo "  upstream guard      检查 TT stream/SNI 网关保护"
+            echo "  selftest            运行安全自测"
+            echo "  update              拉取更新 TT 系统"
             echo "  install             初始化安装"
             echo "  version             版本信息"
             echo "  help                帮助信息"
@@ -514,6 +584,7 @@ run_command() {
             echo "拼音快捷命令:"
             echo "  jc=检测  zt=状态  bs=部署  sc=删除  bf=备份  hf=恢复"
             echo "  xm=项目  rq=容器  rj=日志  zs=证书  wg=网关  dk=端口"
+            echo "  yl=依赖  gj=工具  cs=测试"
             echo ""
             echo "不带参数运行进入交互菜单。"
             ;;

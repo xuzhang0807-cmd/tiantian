@@ -27,6 +27,18 @@ Never commit:
 ```bash
 tt health        # system health check
 tt detect        # server detection
+tt deps doctor   # check required/recommended dependencies
+tt deps install  # install missing recommended dependencies
+tt deps versions # show installed dependency versions
+tt update        # pull latest TT scripts and project blueprints
+tt tools         # terminal system toolbox menu
+tt tools resource # CPU/memory/disk overview
+tt tools ports   # listening ports
+tt tools clean   # clean package/log cache after confirmation
+tt swap 2048     # create/replace 2GB swap after confirmation
+tt selftest      # safe read-only/low-risk smoke test
+tt upstream sync # download kejilion.sh as read-only reference
+tt upstream guard # verify TT stream/SNI gateway protection
 tt profile       # server profile
 tt deploy --plan toko      # preview preset deployment plan
 tt configure toko /home/docker/shop  # generate local-only .env files interactively
@@ -38,9 +50,43 @@ tt ports         # show managed port pool
 tt help          # command help
 ```
 
-Chinese pinyin aliases are available for common operations, for example `tt jc`, `tt bs`, `tt bf`, `tt sc`, `tt rq`, `tt zs`, and `tt wg`.
+English commands are the primary interface. Short aliases are also available for frequent operations, for example `tt jc`, `tt bs`, `tt bf`, `tt sc`, `tt rq`, `tt zs`, `tt wg`, `tt yl`, `tt gj`, and `tt cs`.
 
 ## Preset Deploy Flow
+
+Recommended new-server flow:
+
+```bash
+tt deps doctor
+# If required/recommended dependencies are missing:
+tt deps install
+tt detect
+tt nginx test
+tt deploy --plan <project>
+tt configure <project> [target_dir]
+tt deploy <project>
+tt health
+```
+
+`tt update` refreshes the TT scripts and bundled project blueprints from Git. Use it before deploying on long-lived servers so nginx/Docker/certbot handling and packaged projects stay current.
+
+## Upstream Reference Flow
+
+TT may use `kejilion.sh` as a read-only reference for mature menu/tool ideas, but TT does not execute kejilion project deployment functions because they can overwrite the nginx gateway model.
+
+```bash
+tt upstream sync
+tt upstream guard
+tt selftest
+```
+
+Rules:
+
+- borrow menu style, system tools, Docker panels, and test-script ideas
+- translate projects into TT blueprints instead of calling kejilion deployment functions
+- keep public `443` owned by TT stream/SNI routing
+- keep websites on internal `127.0.0.1:4443` HTTPS listeners
+- run `tt upstream guard` and `tt selftest` after any upstream-inspired change
 
 Deployments are plan-first. TianTian suggests defaults, shows them clearly, and only mutates the server after confirmation.
 

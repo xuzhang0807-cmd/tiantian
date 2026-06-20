@@ -17,6 +17,9 @@ doctor_check() {
     done
     echo ""
 
+    deps_doctor || true
+    echo ""
+
     print_title "目录"
     for dir in "$TT_HOME" /home/web /home/docker "$TT_BACKUP_ROOT" "$TT_SECRETS_ROOT"; do
         if [ -d "$dir" ]; then
