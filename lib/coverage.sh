@@ -21,7 +21,7 @@ coverage_report() {
     printf '%-24s %-10s %s\n' "集群/远程节点" "✅" "cluster add/list/status/run/copy/tt-selftest，多节点 SSH 管理"
     printf '%-24s %-10s %s\n' "任务/同步/计划" "✅" "tasks add/list/plan/run/schedule/unschedule，TT 管理 rsync+cron"
     printf '%-24s %-10s %s\n' "安全工具" "✅" "security status/fail2ban-plan/clamav-plan/clamav-scan，默认预案优先"
-    printf '%-24s %-10s %s\n' "磁盘/挂载" "✅" "disk overview/mounts/candidates/health/mount-plan/format-plan，默认不写盘"
+    printf '%-24s %-10s %s\n' "磁盘/挂载" "✅" "disk overview/mounts/candidates/health/plan + format-write/mount-write/unmount-write（--yes 高风险写入）"
     printf '%-24s %-10s %s\n' "应用市场" "✅" "apps list/show/plan，从 blueprints 生成个人应用目录"
     printf '%-24s %-10s %s\n' "内核/重装/强调优" "⛔" "高风险，不默认私有化；仅做只读检查或明确授权流程"
     echo ""

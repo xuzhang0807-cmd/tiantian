@@ -77,6 +77,9 @@ tt disk mounts # mount table and /etc/fstab overview
 tt disk candidates # unmounted partition candidates, read-only
 tt disk mount-plan /dev/vdb1 /data ext4 # print mount/fstab plan without writing
 tt disk format-plan /dev/vdb1 ext4 data # print destructive format plan without executing
+tt disk format-write /dev/vdb1 ext4 data --yes # real mkfs; destructive
+tt disk mount-write /dev/vdb1 /data ext4 --yes # real mount and append fstab
+tt disk unmount-write /data --yes # real umount and remove matching fstab entry
 tt configure toko /home/docker/shop  # generate local-only .env files interactively
 tt deploy toko             # deploy after local config exists
 tt deploy toko toko none 8450  # override type/domain/port

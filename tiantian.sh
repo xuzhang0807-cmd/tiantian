@@ -635,8 +635,11 @@ run_command() {
                 health|smart) disk_health ;;
                 mount-plan|plan-mount) disk_mount_plan "${2:-}" "${3:-}" "${4:-}" ;;
                 format-plan|plan-format) disk_format_plan "${2:-}" "${3:-ext4}" "${4:-}" ;;
+                format-write|format|mkfs) disk_format_write "${2:-}" "${3:-ext4}" "${4:-}" "${5:-}" ;;
+                mount-write|mount-do) disk_mount_write "${2:-}" "${3:-}" "${4:-}" "${5:-}" ;;
+                unmount-write|umount-write|unmount|umount) disk_unmount_write "${2:-}" "${3:-}" ;;
                 menu) disk_menu ;;
-                *) echo "用法: tt disk [overview|mounts|candidates|health|mount-plan <device> <mountpoint> [fstype]|format-plan <device> [ext4|xfs] [label]|menu]" ;;
+                *) echo "用法: tt disk [overview|mounts|candidates|health|mount-plan <device> <mountpoint> [fstype]|format-plan <device> [ext4|xfs] [label]|format-write <device> [ext4|xfs] [label] --yes|mount-write <device> <mountpoint> [fstype] --yes|unmount-write <device|mountpoint> --yes|menu]" ;;
             esac
             ;;
         apps|app|market)
@@ -792,7 +795,10 @@ run_command() {
             echo "  security status     fail2ban/ClamAV/SSH 安全状态"
             echo "  security fail2ban-plan|clamav-plan  安全工具执行预案"
             echo "  disk overview       磁盘/分区/文件系统总览"
-            echo "  disk mount-plan|format-plan  挂载/格式化预案（不执行）"
+            echo "  disk mount-plan|format-plan  挂载/格式化预案"
+            echo "  disk format-write <dev> ext4 label --yes  真实格式化 ⚠️"
+            echo "  disk mount-write <dev> <mnt> ext4 --yes   真实挂载并写 fstab ⚠️"
+            echo "  disk unmount-write <dev|mnt> --yes        真实卸载并清 fstab ⚠️"
             echo "  firewall status    防火墙/规则/端口状态"
             echo "  bench all          轻量网络测试合集"
             echo "  bench ip|dns|ping|http|speed|streaming|hardware  单项测试"
