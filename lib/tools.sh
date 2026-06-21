@@ -65,7 +65,7 @@ tools_clean_cache() {
     before="$(df -h / | awk 'NR==2{print $4}')"
     if has_cmd apt-get; then
         run "清理 apt 缓存" apt-get clean
-        apt-get autoremove -y || true
+        print_info "跳过 apt autoremove；如需移除孤立软件包，请手动执行 apt-get autoremove 并先检查列表。"
     elif has_cmd dnf; then
         run "清理 dnf 缓存" dnf clean all
     elif has_cmd yum; then

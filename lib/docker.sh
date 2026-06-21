@@ -156,3 +156,194 @@ docker_list_projects() {
     fi
     echo ""
 }
+
+# --- Docker 资源概览（只读） ---
+docker_overview() {
+    print_header "Docker 资源概览"
+    if ! has_cmd docker; then
+        print_warn "Docker 未安装"
+        return 1
+    fi
+
+    print_title "引擎状态"
+    docker info --format 'Server={{.ServerVersion}} Containers={{.Containers}} Running={{.ContainersRunning}} Paused={{.ContainersPaused}} Stopped={{.ContainersStopped}} Images={{.Images}}' 2>/dev/null || {
+        print_warn "无法读取 Docker daemon，请确认服务是否运行"
+        return 1
+    }
+    echo ""
+
+    print_title "资源占用"
+    docker system df 2>/dev/null || true
+    echo ""
+
+    print_title "容器资源 Top"
+    docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}' 2>/dev/null | sed -n '1,12p' || true
+}
+
+# --- Docker 全局容器列表（只读） ---
+docker_list_containers() {
+    print_header "Docker 容器列表"
+    if ! has_cmd docker; then
+        print_warn "Docker 未安装"
+        return 1
+    fi
+    docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}\t{{.Ports}}' 2>/dev/null || {
+        print_warn "无法读取容器列表"
+        return 1
+    }
+}
+
+# --- Docker 镜像列表（只读） ---
+docker_list_images() {
+    print_header "Docker 镜像列表"
+    if ! has_cmd docker; then
+        print_warn "Docker 未安装"
+        return 1
+    fi
+    docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedSince}}' 2>/dev/null || true
+}
+
+# --- Docker 卷/网络列表（只读） ---
+docker_list_storage() {
+    print_header "Docker 卷与网络"
+    if ! has_cmd docker; then
+        print_warn "Docker 未安装"
+        return 1
+    fi
+    print_title "Volumes"
+    docker volume ls 2>/dev/null || true
+    echo ""
+    print_title "Networks"
+    docker network ls 2>/dev/null || true
+}
+
+# --- 校验 compose 项目（只读） ---
+docker_compose_check() {
+    local project_name="${1:-}"
+    local root="${PROJECTS_BASE:-/home/docker}"
+    local checked=0 failed=0
+
+    if [ -n "$project_name" ]; then
+        _docker_compose_check_one "${root}/${project_name}" || return 1
+        return 0
+    fi
+
+    print_header "Compose 配置校验"
+    if [ ! -d "$root" ]; then
+        print_warn "项目目录不存在: $root"
+        return 0
+    fi
+
+    for dir in "$root"/*/; do
+        [ -d "$dir" ] || continue
+        if [ -f "${dir}docker-compose.yml" ] || [ -f "${dir}compose.yml" ] || [ -f "${dir}docker-compose.yaml" ] || [ -f "${dir}compose.yaml" ]; then
+            checked=$((checked + 1))
+            if ! _docker_compose_check_one "$dir"; then
+                failed=$((failed + 1))
+            fi
+        fi
+    done
+
+    echo ""
+    if [ "$checked" -eq 0 ]; then
+        print_warn "未发现 compose 项目"
+    elif [ "$failed" -eq 0 ]; then
+        print_success "校验完成：${checked} 个项目全部通过"
+    else
+        print_fail "校验完成：${checked} 个项目，${failed} 个失败"
+        return 1
+    fi
+}
+
+_docker_compose_check_one() {
+    local project_dir="$1"
+    local name
+    name=$(basename "$project_dir")
+
+    if [ ! -d "$project_dir" ]; then
+        print_fail "项目目录不存在: $project_dir"
+        return 1
+    fi
+    if [ ! -f "${project_dir}/docker-compose.yml" ] && [ ! -f "${project_dir}/compose.yml" ] && [ ! -f "${project_dir}/docker-compose.yaml" ] && [ ! -f "${project_dir}/compose.yaml" ]; then
+        print_warn "跳过 ${name}: 未找到 compose 文件"
+        return 0
+    fi
+
+    if (cd "$project_dir" && $(docker_compose_cmd) config -q >/dev/null 2>&1); then
+        print_success "${name}: compose 配置通过"
+        return 0
+    fi
+
+    print_fail "${name}: compose 配置失败"
+    (cd "$project_dir" && $(docker_compose_cmd) config 2>&1 | sed -n '1,20p') || true
+    return 1
+}
+
+# --- Docker daemon 配置巡检（只读） ---
+docker_daemon_config() {
+    print_header "Docker 配置 / 镜像源 / IPv6"
+    if ! has_cmd docker; then
+        print_warn "Docker 未安装"
+        return 1
+    fi
+
+    print_title "daemon.json"
+    if [ -f /etc/docker/daemon.json ]; then
+        sed -n '1,120p' /etc/docker/daemon.json 2>/dev/null || true
+    else
+        print_warn "未发现 /etc/docker/daemon.json"
+    fi
+    echo ""
+
+    print_title "镜像源"
+    local mirrors
+    mirrors="$(docker info --format '{{json .RegistryConfig.Mirrors}}' 2>/dev/null || true)"
+    if [ -n "$mirrors" ] && [ "$mirrors" != "null" ] && [ "$mirrors" != "[]" ]; then
+        echo "$mirrors"
+    else
+        print_warn "未配置 registry mirrors，拉取镜像可能较慢。"
+    fi
+    echo ""
+
+    print_title "Docker IPv6"
+    local ipv6 fixed_cidr_v6
+    ipv6="$(docker info --format '{{.IPv6}}' 2>/dev/null || true)"
+    fixed_cidr_v6="$(docker info --format '{{.IPv6}} {{.DefaultAddressPools}}' 2>/dev/null || true)"
+    echo "IPv6: ${ipv6:-unknown}"
+    echo "Address pools: ${fixed_cidr_v6:-unknown}"
+    if [ "$ipv6" != "true" ]; then
+        print_warn "Docker IPv6 未启用；仅在需要容器 IPv6 出站/入站时再规划开启。"
+    fi
+}
+
+# --- Docker 安全巡检（只读） ---
+docker_safety_audit() {
+    print_header "Docker 安全巡检"
+    if ! has_cmd docker; then
+        print_warn "Docker 未安装"
+        return 1
+    fi
+
+    print_title "宿主机资源"
+    free -h 2>/dev/null || true
+    df -hT / /home /var/lib/docker 2>/dev/null || df -hT / /var/lib/docker 2>/dev/null || true
+    echo ""
+
+    print_title "Docker 空间"
+    docker system df 2>/dev/null || true
+    echo ""
+
+    print_title "未设置内存限制的运行容器"
+    local unlimited
+    unlimited="$(docker ps -q | xargs -r docker inspect --format '{{.Name}} {{.HostConfig.Memory}}' 2>/dev/null | awk '$2==0 {sub(/^\//,"",$1); print "  - "$1}')"
+    if [ -n "$unlimited" ]; then
+        printf '%s\n' "$unlimited"
+        print_warn "低内存服务器新增容器建议设置 mem_limit/memory，避免 OOM。"
+    else
+        print_success "运行容器均设置了内存限制，或当前无运行容器"
+    fi
+    echo ""
+
+    print_title "重启策略"
+    docker ps -a -q | xargs -r docker inspect --format '{{.Name}} Restart={{.HostConfig.RestartPolicy.Name}}' 2>/dev/null | sed 's#^/##' || true
+}

@@ -81,3 +81,52 @@ backup_list() {
 backup_root_info() {
     echo "$TT_BACKUP_ROOT"
 }
+
+backup_restore_plan() {
+    local archive="${1:-}"
+    if [ -z "$archive" ]; then
+        print_fail "请指定备份包路径"
+        echo "用法: tt restore plan /home/tt-backups/<project>/<file>.tar.gz"
+        return 1
+    fi
+    if [ ! -f "$archive" ]; then
+        print_fail "备份包不存在: $archive"
+        return 1
+    fi
+
+    print_header "恢复预案（只读）"
+    echo "备份包: $archive"
+    echo "大小: $(du -h "$archive" 2>/dev/null | awk '{print $1}')"
+    echo "SHA256: $(sha256sum "$archive" 2>/dev/null | awk '{print $1}')"
+    echo ""
+    print_title "包内关键文件"
+    tar -tzf "$archive" 2>/dev/null | grep -E '(^|/)(manifest.yaml|docker-compose.yml|compose.yml|\.env|BACKUP_INFO.txt)$' | sed 's/^/  /' || true
+    echo ""
+    print_warn "安全规则：恢复不会直接覆盖生产目录。先用 tt restore stage 解包到 staging，人工检查后再迁移。"
+}
+
+backup_restore_stage() {
+    local archive="${1:-}" target="${2:-}"
+    if [ -z "$archive" ]; then
+        print_fail "请指定备份包路径"
+        echo "用法: tt restore stage <backup.tar.gz> [target-dir]"
+        return 1
+    fi
+    if [ ! -f "$archive" ]; then
+        print_fail "备份包不存在: $archive"
+        return 1
+    fi
+    target="${target:-${TT_BACKUP_ROOT}/restore-stage/$(date +%Y%m%d_%H%M%S)}"
+    if [ -e "$target" ]; then
+        print_fail "目标目录已存在: $target"
+        return 1
+    fi
+
+    print_info "解包到 staging: $target"
+    mkdir -p "$target"
+    tar -xzf "$archive" -C "$target"
+    chmod -R go-rwx "$target" 2>/dev/null || true
+    print_success "已解包到: $target"
+    print_warn "请检查 compose/.env/数据目录后，再按项目恢复流程迁移；TT 不会自动覆盖生产数据。"
+    echo "$target"
+}

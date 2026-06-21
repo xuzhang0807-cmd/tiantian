@@ -35,6 +35,17 @@ tt tools         # terminal system toolbox menu
 tt tools resource # CPU/memory/disk overview
 tt tools ports   # listening ports
 tt tools clean   # clean package/log cache after confirmation
+tt firewall status # read-only firewall/rules/listening-port report
+tt bench all     # lightweight IP/DNS/ping/HTTP tests
+tt bench ip      # public IP and ipinfo summary
+tt ops ssh       # read-only SSH security/listener/auth-key summary
+tt ops dns       # DNS resolver and name-resolution diagnostics
+tt ops cron      # crontab and systemd timer overview
+tt ops bbr       # TCP congestion / BBR status
+tt ops process   # process, load, CPU/memory top, zombie check
+tt ops disk      # filesystem, inode, large-dir and large-log overview
+tt ops services  # systemd service active/enabled/failed overview
+tt ops tmux      # tmux/background workspace status
 tt swap 2048     # create/replace 2GB swap after confirmation
 tt selftest      # safe read-only/low-risk smoke test
 tt upstream sync # download kejilion.sh as read-only reference
@@ -44,6 +55,17 @@ tt deploy --plan toko      # preview preset deployment plan
 tt configure toko /home/docker/shop  # generate local-only .env files interactively
 tt deploy toko             # deploy after local config exists
 tt deploy toko toko none 8450  # override type/domain/port
+tt docker overview # Docker engine/container/image/storage resource overview
+tt docker containers # list all containers
+tt docker images # list images
+tt docker storage # list volumes and networks
+tt docker check [project] # validate compose config without starting containers
+tt docker daemon # read-only Docker daemon/mirror/IPv6 config inspection
+tt docker audit # read-only Docker safety audit for low-memory hosts
+tt cluster status # read-only cluster/node reachability scaffold
+tt coverage      # Kejilion-inspired feature coverage matrix
+tt restore plan <backup.tar.gz> # inspect restore plan without touching production
+tt restore stage <backup.tar.gz> [dir] # extract backup to staging only
 tt remove        # backup then remove a project
 tt backup        # create project backup
 tt ports         # show managed port pool

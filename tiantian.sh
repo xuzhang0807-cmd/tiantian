@@ -21,6 +21,11 @@ source "${TT_HOME}/lib/secrets.sh"
 source "${TT_HOME}/lib/backup.sh"
 source "${TT_HOME}/lib/deps.sh"
 source "${TT_HOME}/lib/tools.sh"
+source "${TT_HOME}/lib/ops.sh"
+source "${TT_HOME}/lib/firewall.sh"
+source "${TT_HOME}/lib/bench.sh"
+source "${TT_HOME}/lib/cluster.sh"
+source "${TT_HOME}/lib/coverage.sh"
 source "${TT_HOME}/lib/selftest.sh"
 source "${TT_HOME}/lib/upstream.sh"
 source "${TT_HOME}/lib/doctor.sh"
@@ -64,7 +69,11 @@ show_menu() {
     echo -e "  ${GREEN}7${NC}) 监控巡检"
     echo -e "  ${GREEN}8${NC}) 备份恢复"
     echo -e "  ${GREEN}9${NC}) 系统工具"
-    echo -e "  ${GREEN}10${NC}) 高级操作"
+    echo -e "  ${GREEN}10${NC}) 防火墙状态"
+    echo -e "  ${GREEN}11${NC}) 测试脚本合集"
+    echo -e "  ${GREEN}12${NC}) 常用运维"
+    echo -e "  ${GREEN}13${NC}) 集群控制"
+    echo -e "  ${GREEN}14${NC}) 高级操作"
     echo ""
     echo -e "  ${GREEN}0${NC}) 退出"
     echo ""
@@ -108,8 +117,53 @@ show_docker_menu() {
     echo -e "  ${GREEN}3${NC}) 停止项目"
     echo -e "  ${GREEN}4${NC}) 重启项目"
     echo -e "  ${GREEN}5${NC}) 查看日志"
+    echo -e "  ${GREEN}6${NC}) Docker 资源概览 ✅"
+    echo -e "  ${GREEN}7${NC}) 全部容器列表 ✅"
+    echo -e "  ${GREEN}8${NC}) 镜像列表 ✅"
+    echo -e "  ${GREEN}9${NC}) 卷/网络列表 ✅"
+    echo -e "  ${GREEN}10${NC}) Compose 配置校验 ✅"
+    echo -e "  ${GREEN}11${NC}) Docker 安全巡检 ✅"
+    echo -e "  ${GREEN}12${NC}) Docker 配置/镜像源/IPv6 ✅"
     echo -e "  ${GREEN}0${NC}) 返回"
     echo ""
+}
+
+docker_menu() {
+    while true; do
+        show_docker_menu
+        read -r -p "  tt/docker> " dchoice
+        case "$dchoice" in
+            1) docker_list_projects ;;
+            2)
+                read -r -p "  项目名称: " dname
+                [ -n "$dname" ] && docker_up "${PROJECTS_BASE}/${dname}"
+                ;;
+            3)
+                read -r -p "  项目名称: " dname
+                [ -n "$dname" ] && docker_down "${PROJECTS_BASE}/${dname}"
+                ;;
+            4)
+                read -r -p "  项目名称: " dname
+                [ -n "$dname" ] && docker_restart "${PROJECTS_BASE}/${dname}"
+                ;;
+            5)
+                read -r -p "  项目名称: " dname
+                [ -n "$dname" ] && docker_logs "${PROJECTS_BASE}/${dname}" 50
+                ;;
+            6) docker_overview ;;
+            7) docker_list_containers ;;
+            8) docker_list_images ;;
+            9) docker_list_storage ;;
+            10)
+                read -r -p "  项目名称（留空校验全部）: " dname
+                docker_compose_check "$dname"
+                ;;
+            11) docker_safety_audit ;;
+            12) docker_daemon_config ;;
+            0) break ;;
+            *) echo -e "  ${RED}无效选项${NC}" ;;
+        esac
+    done
 }
 
 # --- 高级操作子菜单 ---
@@ -246,32 +300,7 @@ main_loop() {
                 cert_status
                 ;;
             6)
-                # 容器管理子菜单
-                while true; do
-                    show_docker_menu
-                    read -p "  tt/docker> " dchoice
-                    case "$dchoice" in
-                        1) docker_list_projects ;;
-                        2)
-                            read -p "  项目名称: " dname
-                            [ -n "$dname" ] && docker_up "${PROJECTS_BASE}/${dname}"
-                            ;;
-                        3)
-                            read -p "  项目名称: " dname
-                            [ -n "$dname" ] && docker_down "${PROJECTS_BASE}/${dname}"
-                            ;;
-                        4)
-                            read -p "  项目名称: " dname
-                            [ -n "$dname" ] && docker_restart "${PROJECTS_BASE}/${dname}"
-                            ;;
-                        5)
-                            read -p "  项目名称: " dname
-                            [ -n "$dname" ] && docker_logs "${PROJECTS_BASE}/${dname}" 50
-                            ;;
-                        0) break ;;
-                        *) echo -e "  ${RED}无效选项${NC}" ;;
-                    esac
-                done
+                docker_menu
                 ;;
             7)
                 health_check
@@ -286,6 +315,18 @@ main_loop() {
                 tools_menu
                 ;;
             10)
+                firewall_menu
+                ;;
+            11)
+                bench_menu
+                ;;
+            12)
+                ops_menu
+                ;;
+            13)
+                cluster_menu
+                ;;
+            14)
                 while true; do
                     show_advanced_menu
                     read -p "  tt/advanced> " achoice
@@ -342,7 +383,12 @@ run_command() {
         yl) cmd="deps" ;;
         yilai) cmd="deps" ;;
         gj) cmd="tools" ;;
+        yw) cmd="ops" ;;
+        fh) cmd="firewall" ;;
         cs) cmd="selftest" ;;
+        jq) cmd="cluster" ;;
+        fg) cmd="coverage" ;;
+        测试|测速|cesu) cmd="bench" ;;
     esac
     
     case "$cmd" in
@@ -445,7 +491,14 @@ run_command() {
             esac
             ;;
         restore)
-            print_warn "恢复功能将在 v0.3 接入；当前可先从 /home/tt-backups 手动解包恢复"
+            case "${1:-plan}" in
+                plan|check) backup_restore_plan "${2:-}" ;;
+                stage|extract) backup_restore_stage "${2:-}" "${3:-}" ;;
+                *) echo "用法: tt restore [plan|stage] <backup.tar.gz> [target-dir]" ;;
+            esac
+            ;;
+        coverage|cover)
+            coverage_report
             ;;
         configure|config)
             secret_configure_blueprint "${1:?请指定 blueprint 名称}" "${2:-}"
@@ -466,7 +519,10 @@ run_command() {
             docker_logs "${PROJECTS_BASE}/${1:?请指定项目}" "${2:-50}"
             ;;
         docker)
-            case "${1:-}" in
+            case "${1:-menu}" in
+                menu)
+                    docker_menu
+                    ;;
                 up)
                     docker_up "${PROJECTS_BASE}/${2:?请指定项目}"
                     ;;
@@ -479,12 +535,40 @@ run_command() {
                 logs)
                     docker_logs "${PROJECTS_BASE}/${2:?请指定项目}" "${3:-50}"
                     ;;
-                ps|list)
+                ps|projects|list)
                     docker_list_projects
                     ;;
-                *)
-                    echo "用法: tt docker [up|down|restart|logs <project>|ps]"
+                containers|container|ls)
+                    docker_list_containers
                     ;;
+                overview|resource|resources|df|stats)
+                    docker_overview
+                    ;;
+                images|image)
+                    docker_list_images
+                    ;;
+                storage|volumes|networks)
+                    docker_list_storage
+                    ;;
+                check|config)
+                    docker_compose_check "${2:-}"
+                    ;;
+                daemon|source|mirror|mirrors|ipv6)
+                    docker_daemon_config
+                    ;;
+                audit|safe|safety)
+                    docker_safety_audit
+                    ;;
+                *)
+                    echo "用法: tt docker [overview|containers|images|storage|check [project]|daemon|audit|up|down|restart|logs <project>|ps]"
+                    ;;
+            esac
+            ;;
+        cluster|nodes)
+            case "${1:-status}" in
+                status|list|ls) cluster_status ;;
+                menu) cluster_menu ;;
+                *) echo "用法: tt cluster [status|menu]" ;;
             esac
             ;;
         deps|dependency|dependencies)
@@ -513,6 +597,44 @@ run_command() {
                     esac
                     ;;
                 *) echo "用法: tt tools [resource|ports|network|logs|clean|update|install|swap]" ;;
+            esac
+            ;;
+        ops|op|yunwei)
+            case "${1:-menu}" in
+                menu) ops_menu ;;
+                ssh) ops_ssh_status ;;
+                dns) ops_dns_status ;;
+                cron|timer|timers) ops_cron_status ;;
+                bbr|tcp) ops_bbr_status ;;
+                process|proc|ps) ops_process_status ;;
+                disk|du|df) ops_disk_status ;;
+                services|service|svc) ops_services_status ;;
+                tmux|workspace|work) ops_tmux_status ;;
+                *) echo "用法: tt ops [ssh|dns|cron|bbr|process|disk|services|tmux|menu]" ;;
+            esac
+            ;;
+        firewall|fw)
+            case "${1:-status}" in
+                status|show) firewall_status ;;
+                ports) tools_ports ;;
+                menu) firewall_menu ;;
+                *) echo "用法: tt firewall [status|ports|menu]" ;;
+            esac
+            ;;
+        bench|benchmark|testnet)
+            case "${1:-menu}" in
+                menu) bench_menu ;;
+                ip) bench_ip ;;
+                dns) bench_dns ;;
+                ping) bench_ping ;;
+                http) bench_http ;;
+                all|safe)
+                    bench_ip
+                    bench_dns
+                    bench_ping
+                    bench_http
+                    ;;
+                *) echo "用法: tt bench [ip|dns|ping|http|all|menu]" ;;
             esac
             ;;
         swap)
@@ -562,14 +684,29 @@ run_command() {
             echo "  remove <name>       备份后删除项目"
             echo "  backup create <name> 备份项目"
             echo "  backup list [name]  列出备份"
+            echo "  restore plan <tar>  恢复预案"
+            echo "  restore stage <tar> 解包到 staging"
             echo "  ports               查看端口池"
             echo "  list                列出项目"
-            echo "  docker ps           容器列表"
+            echo "  docker ps           Docker 项目列表"
+            echo "  docker overview     Docker 资源概览"
+            echo "  docker containers   全部容器列表"
+            echo "  docker images       镜像列表"
+            echo "  docker storage      卷/网络列表"
+            echo "  docker check [name] 校验 compose 配置"
+            echo "  docker daemon       Docker 配置/镜像源/IPv6"
+            echo "  docker audit        Docker 安全巡检"
             echo "  docker logs <name>  查看日志"
             echo "  tools               系统工具菜单"
             echo "  tools resource      资源概览"
             echo "  tools ports         端口监听"
             echo "  tools clean         清理缓存"
+            echo "  ops ssh|dns|cron|bbr|process|disk|services|tmux 常用运维只读检查"
+            echo "  firewall status    防火墙/规则/端口状态"
+            echo "  bench all          轻量网络测试合集"
+            echo "  bench ip|dns|ping|http  单项网络测试"
+            echo "  cluster status     集群节点只读状态"
+            echo "  coverage           Kejilion 覆盖矩阵"
             echo "  swap <MB>           设置 swap"
             echo "  deps doctor         检查依赖"
             echo "  deps install        安装缺失依赖"
@@ -584,7 +721,7 @@ run_command() {
             echo "拼音快捷命令:"
             echo "  jc=检测  zt=状态  bs=部署  sc=删除  bf=备份  hf=恢复"
             echo "  xm=项目  rq=容器  rj=日志  zs=证书  wg=网关  dk=端口"
-            echo "  yl=依赖  gj=工具  cs=测试"
+            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  fg=覆盖  cs=测试  cesu=网络测试"
             echo ""
             echo "不带参数运行进入交互菜单。"
             ;;
