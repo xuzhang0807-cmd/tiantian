@@ -22,6 +22,8 @@ source "${TT_HOME}/lib/backup.sh"
 source "${TT_HOME}/lib/deps.sh"
 source "${TT_HOME}/lib/tools.sh"
 source "${TT_HOME}/lib/ops.sh"
+source "${TT_HOME}/lib/tasks.sh"
+source "${TT_HOME}/lib/security.sh"
 source "${TT_HOME}/lib/firewall.sh"
 source "${TT_HOME}/lib/bench.sh"
 source "${TT_HOME}/lib/cluster.sh"
@@ -75,7 +77,9 @@ show_menu() {
     echo -e "  ${GREEN}12${NC}) 常用运维"
     echo -e "  ${GREEN}13${NC}) 集群控制"
     echo -e "  ${GREEN}14${NC}) 应用目录"
-    echo -e "  ${GREEN}15${NC}) 高级操作"
+    echo -e "  ${GREEN}15${NC}) 任务计划"
+    echo -e "  ${GREEN}16${NC}) 安全工具"
+    echo -e "  ${GREEN}17${NC}) 高级操作"
     echo ""
     echo -e "  ${GREEN}0${NC}) 退出"
     echo ""
@@ -332,6 +336,12 @@ main_loop() {
                 apps_menu
                 ;;
             15)
+                tasks_menu
+                ;;
+            16)
+                security_menu
+                ;;
+            17)
                 while true; do
                     show_advanced_menu
                     read -p "  tt/advanced> " achoice
@@ -392,6 +402,8 @@ run_command() {
         fh) cmd="firewall" ;;
         cs) cmd="selftest" ;;
         jq) cmd="cluster" ;;
+        rw) cmd="tasks" ;;
+        aq) cmd="security" ;;
         fg) cmd="coverage" ;;
         yy) cmd="apps" ;;
         测试|测速|cesu) cmd="bench" ;;
@@ -584,6 +596,31 @@ run_command() {
                 *) echo "用法: tt cluster [status|list|add <name> <user@host> [port] [key]|remove <name>|run <name> <cmd>|copy <name> <local> <remote>|tt-selftest <name>|menu]" ;;
             esac
             ;;
+        tasks|task|rsync)
+            case "${1:-list}" in
+                list|ls) tasks_list ;;
+                add) tasks_add "${2:-}" "${3:-push}" "${4:-}" "${5:-}" "${6:-22}" "${7:-}" "${8:--az}" ;;
+                remove|rm|delete) tasks_remove "${2:-}" ;;
+                plan|dry-run) tasks_plan "${2:-}" ;;
+                run|exec) tasks_run "${2:-}" ;;
+                schedule|cron) tasks_schedule "${2:-}" "${3:-daily}" ;;
+                unschedule|uncron) tasks_unschedule "${2:-}" ;;
+                crontab|cron-list) tasks_cron ;;
+                menu) tasks_menu ;;
+                *) echo "用法: tt tasks [list|add <name> <push|pull> <local> <user@host:/path> [port] [key] [opts]|plan <name>|run <name>|schedule <name> [hourly|daily|weekly|cron]|unschedule <name>|remove <name>|crontab|menu]" ;;
+            esac
+            ;;
+        security|safe|sec)
+            case "${1:-status}" in
+                status|show) security_status ;;
+                fail2ban-plan|f2b-plan) security_fail2ban_plan ;;
+                fail2ban-install|f2b-install) security_fail2ban_install ;;
+                clamav-plan|clam-plan) security_clamav_plan "${2:-/home}" ;;
+                clamav-scan|clam-scan) security_clamav_scan "${2:-/home}" ;;
+                menu) security_menu ;;
+                *) echo "用法: tt security [status|fail2ban-plan|fail2ban-install|clamav-plan [dir]|clamav-scan [dir]|menu]" ;;
+            esac
+            ;;
         apps|app|market)
             case "${1:-list}" in
                 list|ls) apps_list ;;
@@ -732,6 +769,10 @@ run_command() {
             echo "  tools ports         端口监听"
             echo "  tools clean         清理缓存"
             echo "  ops ssh|dns|cron|bbr|process|disk|services|tmux 常用运维只读检查"
+            echo "  tasks list          Rsync 任务列表"
+            echo "  tasks add/plan/run/schedule  远程同步任务管理"
+            echo "  security status     fail2ban/ClamAV/SSH 安全状态"
+            echo "  security fail2ban-plan|clamav-plan  安全工具执行预案"
             echo "  firewall status    防火墙/规则/端口状态"
             echo "  bench all          轻量网络测试合集"
             echo "  bench ip|dns|ping|http|speed|streaming|hardware  单项测试"
@@ -752,7 +793,7 @@ run_command() {
             echo "拼音快捷命令:"
             echo "  jc=检测  zt=状态  bs=部署  sc=删除  bf=备份  hf=恢复"
             echo "  xm=项目  rq=容器  rj=日志  zs=证书  wg=网关  dk=端口"
-            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
+            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
             echo ""
             echo "不带参数运行进入交互菜单。"
             ;;

@@ -65,6 +65,13 @@ tt firewall plan allow 443 tcp # print backup steps and candidate firewall comma
 tt cluster add jp root@1.2.3.4 22 ~/.ssh/key # add remote node
 tt cluster run jp 'hostname && uptime' # execute command on remote node
 tt cluster tt-selftest jp # upload temporary TT copy and run selftest remotely
+tt tasks list    # list rsync sync jobs
+tt tasks add backup_www push /home/web root@1.2.3.4:/backup/web 22 ~/.ssh/key # add rsync job
+tt tasks plan backup_www # preview rsync command without copying data
+tt tasks schedule backup_www daily # add TT-managed crontab entry
+tt security status # fail2ban/ClamAV/SSH security overview
+tt security fail2ban-plan # show install/enable plan without changing system
+tt security clamav-plan /home # show containerized ClamAV read-only scan plan
 tt configure toko /home/docker/shop  # generate local-only .env files interactively
 tt deploy toko             # deploy after local config exists
 tt deploy toko toko none 8450  # override type/domain/port

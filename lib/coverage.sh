@@ -19,8 +19,10 @@ coverage_report() {
     printf '%-24s %-10s %s\n' "防火墙/WAF" "✅" "firewall status/ports/plan/backup/apply/restore；写入前自动备份"
     printf '%-24s %-10s %s\n' "测试/测速脚本" "✅" "bench ip/dns/ping/http/speed/streaming/hardware"
     printf '%-24s %-10s %s\n' "集群/远程节点" "✅" "cluster add/list/status/run/copy/tt-selftest，多节点 SSH 管理"
+    printf '%-24s %-10s %s\n' "任务/同步/计划" "✅" "tasks add/list/plan/run/schedule/unschedule，TT 管理 rsync+cron"
+    printf '%-24s %-10s %s\n' "安全工具" "✅" "security status/fail2ban-plan/clamav-plan/clamav-scan，默认预案优先"
     printf '%-24s %-10s %s\n' "应用市场" "✅" "apps list/show/plan，从 blueprints 生成个人应用目录"
     printf '%-24s %-10s %s\n' "内核/重装/强调优" "⛔" "高风险，不默认私有化；仅做只读检查或明确授权流程"
     echo ""
-    echo "结论：核心个人部署工具链、个人应用目录、备份恢复演练、防火墙写入/回滚、远程节点管理和重型测试脚本已覆盖；内核/重装类高风险动作仍保留为明确授权边界。"
+    echo "结论：核心个人部署工具链、个人应用目录、备份恢复演练、防火墙写入/回滚、远程节点管理、同步任务计划和安全工具预案已覆盖；内核/重装类高风险动作仍保留为明确授权边界。"
 }
