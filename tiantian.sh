@@ -500,7 +500,8 @@ run_command() {
             case "${1:-plan}" in
                 plan|check) backup_restore_plan "${2:-}" ;;
                 stage|extract) backup_restore_stage "${2:-}" "${3:-}" ;;
-                *) echo "用法: tt restore [plan|stage] <backup.tar.gz> [target-dir]" ;;
+                verify|drill|test) backup_restore_verify "${2:-}" "${3:-}" ;;
+                *) echo "用法: tt restore [plan|stage|verify] <backup.tar.gz> [target-dir]" ;;
             esac
             ;;
         coverage|cover)
@@ -706,6 +707,7 @@ run_command() {
             echo "  backup list [name]  列出备份"
             echo "  restore plan <tar>  恢复预案"
             echo "  restore stage <tar> 解包到 staging"
+            echo "  restore verify <tar> 恢复演练，不覆盖生产"
             echo "  ports               查看端口池"
             echo "  list                列出项目"
             echo "  docker ps           Docker 项目列表"

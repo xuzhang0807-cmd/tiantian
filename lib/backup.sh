@@ -130,3 +130,71 @@ backup_restore_stage() {
     print_warn "请检查 compose/.env/数据目录后，再按项目恢复流程迁移；TT 不会自动覆盖生产数据。"
     echo "$target"
 }
+
+backup_restore_verify() {
+    local archive="${1:-}" target="${2:-}"
+    local list_file err_file
+    list_file="/tmp/tt-restore-verify-list.$$"
+    err_file="/tmp/tt-restore-verify-err.$$"
+
+    if [ -z "$archive" ]; then
+        print_fail "请指定备份包路径"
+        echo "用法: tt restore verify <backup.tar.gz> [stage-dir]"
+        return 1
+    fi
+    if [ ! -f "$archive" ]; then
+        print_fail "备份包不存在: $archive"
+        return 1
+    fi
+
+    print_header "恢复演练（不覆盖生产）"
+    echo "备份包: $archive"
+    echo "大小: $(du -h "$archive" 2>/dev/null | awk '{print $1}')"
+    echo "SHA256: $(sha256sum "$archive" 2>/dev/null | awk '{print $1}')"
+    echo ""
+
+    print_title "压缩包完整性"
+    if tar -tzf "$archive" >"$list_file" 2>"$err_file"; then
+        print_success "tar 可读取"
+    else
+        print_fail "tar 读取失败: $(cat "$err_file" 2>/dev/null)"
+        rm -f "$list_file" "$err_file"
+        return 1
+    fi
+
+    print_title "关键文件检查"
+    local has_manifest has_compose has_env
+    has_manifest="$(grep -E '(^|/)manifest.yaml$' "$list_file" | head -n1 || true)"
+    has_compose="$(grep -E '(^|/)(docker-compose.yml|compose.yml)$' "$list_file" | head -n1 || true)"
+    has_env="$(grep -E '(^|/)\.env$' "$list_file" | head -n1 || true)"
+    [ -n "$has_manifest" ] && print_success "manifest: $has_manifest" || print_warn "未发现 manifest.yaml"
+    [ -n "$has_compose" ] && print_success "compose: $has_compose" || print_warn "未发现 docker-compose.yml/compose.yml"
+    [ -n "$has_env" ] && print_warn "包含 .env：解包目录将设置为仅当前用户可读" || print_info "未发现根级 .env"
+    echo ""
+
+    target="${target:-${TT_BACKUP_ROOT}/restore-verify/$(date +%Y%m%d_%H%M%S)}"
+    if [ -e "$target" ]; then
+        print_fail "目标目录已存在: $target"
+        rm -f "$list_file" "$err_file"
+        return 1
+    fi
+
+    print_title "演练解包"
+    mkdir -p "$target"
+    if tar -xzf "$archive" -C "$target"; then
+        chmod -R go-rwx "$target" 2>/dev/null || true
+        print_success "已解包到: $target"
+    else
+        print_fail "解包失败"
+        rm -f "$list_file" "$err_file"
+        return 1
+    fi
+
+    print_title "解包后检查"
+    find "$target" -maxdepth 3 \( -name manifest.yaml -o -name docker-compose.yml -o -name compose.yml -o -name .env \) -printf '  %P\n' 2>/dev/null | sort || true
+    echo ""
+    print_warn "演练完成：TT 没有覆盖生产目录。人工确认后，按项目 README/blueprint 恢复数据和配置。"
+    echo "$target"
+
+    rm -f "$list_file" "$err_file"
+}

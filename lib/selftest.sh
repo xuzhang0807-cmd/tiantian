@@ -29,6 +29,33 @@ _selftest_skip() {
     printf "\n[跳过] %s - %s\n" "$name" "$reason"
 }
 
+_selftest_restore_verify_sample() {
+    local root archive stage rc
+    root="/tmp/tt-selftest-restore-$$"
+    archive="${root}/sample.tar.gz"
+    stage="${root}/stage"
+    rm -rf "$root"
+    mkdir -p "${root}/sample-project/data"
+    cat > "${root}/sample-project/manifest.yaml" <<'EOF'
+name: sample-project
+type: test
+domain: ""
+container:
+  port: 18080
+EOF
+    cat > "${root}/sample-project/docker-compose.yml" <<'EOF'
+services:
+  sample:
+    image: hello-world
+EOF
+    tar -czf "$archive" -C "$root" sample-project
+    "$TT_HOME/tiantian.sh" restore verify "$archive" "$stage" >/dev/null
+    [ -f "${stage}/sample-project/manifest.yaml" ] && [ -f "${stage}/sample-project/docker-compose.yml" ]
+    rc=$?
+    rm -rf "$root"
+    return "$rc"
+}
+
 selftest_safe() {
     print_header "TT 安全自测"
     echo "范围：只读/低风险命令；不会部署项目、重启服务、清理 Docker 或修改 nginx。"
@@ -65,6 +92,7 @@ selftest_safe() {
     _selftest_run "应用部署计划" "只读" "\"$TT_HOME/tiantian.sh\" apps plan toko >/dev/null"
     _selftest_run "部署计划 toko" "只读" "\"$TT_HOME/tiantian.sh\" deploy --plan toko >/dev/null"
     _selftest_run "部署计划 sub2api" "只读" "\"$TT_HOME/tiantian.sh\" deploy --plan sub2api >/dev/null"
+    _selftest_run "恢复演练样本" "临时文件" "_selftest_restore_verify_sample"
     _selftest_skip "真实项目部署" "需要测试域名和老板确认"
     _selftest_skip "系统更新/Swap/缓存清理" "会修改系统，仅在确认后执行"
     echo ""

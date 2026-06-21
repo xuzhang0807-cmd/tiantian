@@ -70,6 +70,7 @@ tt cluster status # read-only cluster/node reachability scaffold
 tt coverage      # Kejilion-inspired feature coverage matrix
 tt restore plan <backup.tar.gz> # inspect restore plan without touching production
 tt restore stage <backup.tar.gz> [dir] # extract backup to staging only
+tt restore verify <backup.tar.gz> [dir] # run restore drill into staging, no production overwrite
 tt remove        # backup then remove a project
 tt backup        # create project backup
 tt ports         # show managed port pool
