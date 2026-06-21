@@ -26,6 +26,7 @@ source "${TT_HOME}/lib/firewall.sh"
 source "${TT_HOME}/lib/bench.sh"
 source "${TT_HOME}/lib/cluster.sh"
 source "${TT_HOME}/lib/coverage.sh"
+source "${TT_HOME}/lib/apps.sh"
 source "${TT_HOME}/lib/selftest.sh"
 source "${TT_HOME}/lib/upstream.sh"
 source "${TT_HOME}/lib/doctor.sh"
@@ -73,7 +74,8 @@ show_menu() {
     echo -e "  ${GREEN}11${NC}) 测试脚本合集"
     echo -e "  ${GREEN}12${NC}) 常用运维"
     echo -e "  ${GREEN}13${NC}) 集群控制"
-    echo -e "  ${GREEN}14${NC}) 高级操作"
+    echo -e "  ${GREEN}14${NC}) 应用目录"
+    echo -e "  ${GREEN}15${NC}) 高级操作"
     echo ""
     echo -e "  ${GREEN}0${NC}) 退出"
     echo ""
@@ -327,6 +329,9 @@ main_loop() {
                 cluster_menu
                 ;;
             14)
+                apps_menu
+                ;;
+            15)
                 while true; do
                     show_advanced_menu
                     read -p "  tt/advanced> " achoice
@@ -388,6 +393,7 @@ run_command() {
         cs) cmd="selftest" ;;
         jq) cmd="cluster" ;;
         fg) cmd="coverage" ;;
+        yy) cmd="apps" ;;
         测试|测速|cesu) cmd="bench" ;;
     esac
     
@@ -571,6 +577,15 @@ run_command() {
                 *) echo "用法: tt cluster [status|menu]" ;;
             esac
             ;;
+        apps|app|market)
+            case "${1:-list}" in
+                list|ls) apps_list ;;
+                show|info) apps_show "${2:-}" ;;
+                plan) apps_plan "${2:-}" "${3:-}" "${4:-}" ;;
+                menu) apps_menu ;;
+                *) echo "用法: tt apps [list|show <name>|plan <name> [domain|none] [port]|menu]" ;;
+            esac
+            ;;
         deps|dependency|dependencies)
             case "${1:-doctor}" in
                 doctor|check) deps_doctor ;;
@@ -680,6 +695,9 @@ run_command() {
             echo "  nginx add <d> <p>   添加站点"
             echo "  deploy <name> [type] [domain|none] [port] 部署项目"
             echo "  deploy --plan <name>  仅生成预设部署计划"
+            echo "  apps list           应用目录"
+            echo "  apps show <name>    应用详情"
+            echo "  apps plan <name>    应用部署计划"
             echo "  configure <blueprint> [dir]  交互生成本地 .env 配置"
             echo "  remove <name>       备份后删除项目"
             echo "  backup create <name> 备份项目"
@@ -721,7 +739,7 @@ run_command() {
             echo "拼音快捷命令:"
             echo "  jc=检测  zt=状态  bs=部署  sc=删除  bf=备份  hf=恢复"
             echo "  xm=项目  rq=容器  rj=日志  zs=证书  wg=网关  dk=端口"
-            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  fg=覆盖  cs=测试  cesu=网络测试"
+            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
             echo ""
             echo "不带参数运行进入交互菜单。"
             ;;

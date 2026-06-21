@@ -60,6 +60,8 @@ selftest_safe() {
     _selftest_run "Docker 配置巡检" "只读" "\"$TT_HOME/tiantian.sh\" docker daemon >/dev/null || true"
     _selftest_run "集群节点状态" "只读" "\"$TT_HOME/tiantian.sh\" cluster status >/dev/null || true"
     _selftest_run "Kejilion 覆盖矩阵" "只读" "\"$TT_HOME/tiantian.sh\" coverage >/dev/null"
+    _selftest_run "应用目录列表" "只读" "\"$TT_HOME/tiantian.sh\" apps list >/dev/null"
+    _selftest_run "应用部署计划" "只读" "\"$TT_HOME/tiantian.sh\" apps plan toko >/dev/null"
     _selftest_run "部署计划 toko" "只读" "\"$TT_HOME/tiantian.sh\" deploy --plan toko >/dev/null"
     _selftest_run "部署计划 sub2api" "只读" "\"$TT_HOME/tiantian.sh\" deploy --plan sub2api >/dev/null"
     _selftest_skip "真实项目部署" "需要测试域名和老板确认"
