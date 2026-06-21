@@ -36,6 +36,9 @@ tt tools resource # CPU/memory/disk overview
 tt tools ports   # listening ports
 tt tools clean   # clean package/log cache after confirmation
 tt firewall status # read-only firewall/rules/listening-port report
+tt firewall backup # snapshot current ufw/firewalld/nft/iptables state
+tt firewall apply allow 443 tcp # write firewall rule after confirmation, with rollback path
+tt firewall restore <backup_dir> # restore from a TT firewall backup
 tt bench all     # lightweight IP/DNS/ping/HTTP tests
 tt bench ip      # public IP and ipinfo summary
 tt bench speed   # download speed test (Cloudflare/Hetzner ~100MB)
@@ -59,6 +62,9 @@ tt apps list               # list personal blueprint app catalog
 tt apps show toko          # show app details from blueprint manifest/readme
 tt apps plan toko          # preview app deploy plan without writing files
 tt firewall plan allow 443 tcp # print backup steps and candidate firewall commands only
+tt cluster add jp root@1.2.3.4 22 ~/.ssh/key # add remote node
+tt cluster run jp 'hostname && uptime' # execute command on remote node
+tt cluster tt-selftest jp # upload temporary TT copy and run selftest remotely
 tt configure toko /home/docker/shop  # generate local-only .env files interactively
 tt deploy toko             # deploy after local config exists
 tt deploy toko toko none 8450  # override type/domain/port

@@ -573,9 +573,15 @@ run_command() {
             ;;
         cluster|nodes)
             case "${1:-status}" in
-                status|list|ls) cluster_status ;;
+                status) cluster_status ;;
+                list|ls) cluster_list ;;
+                add) cluster_add "${2:-}" "${3:-}" "${4:-22}" "${5:-}" ;;
+                remove|rm|delete) cluster_remove "${2:-}" ;;
+                run|exec) shift; cluster_run "$@" ;;
+                copy|scp) cluster_copy "${2:-}" "${3:-}" "${4:-}" ;;
+                tt-selftest|selftest) cluster_tt_selftest "${2:-}" ;;
                 menu) cluster_menu ;;
-                *) echo "用法: tt cluster [status|menu]" ;;
+                *) echo "用法: tt cluster [status|list|add <name> <user@host> [port] [key]|remove <name>|run <name> <cmd>|copy <name> <local> <remote>|tt-selftest <name>|menu]" ;;
             esac
             ;;
         apps|app|market)
@@ -634,8 +640,11 @@ run_command() {
                 status|show) firewall_status ;;
                 ports) tools_ports ;;
                 plan) firewall_plan "${2:-allow}" "${3:-}" "${4:-tcp}" "${5:-}" ;;
+                backup) firewall_backup ;;
+                apply|write) firewall_apply "${2:-allow}" "${3:-}" "${4:-tcp}" "${5:-}" ;;
+                restore|rollback) firewall_restore "${2:-}" ;;
                 menu) firewall_menu ;;
-                *) echo "用法: tt firewall [status|ports|plan [allow|deny|delete] <port> [tcp|udp] [source_cidr]|menu]" ;;
+                *) echo "用法: tt firewall [status|ports|plan|backup|apply [allow|deny|delete] <port> [tcp|udp] [source_cidr]|restore <backup_dir>|menu]" ;;
             esac
             ;;
         bench|benchmark|testnet)
@@ -699,6 +708,7 @@ run_command() {
             echo "  apps show <name>    应用详情"
             echo "  apps plan <name>    应用部署计划"
             echo "  firewall plan allow 443 tcp  生成防火墙规则预案"
+            echo "  firewall apply allow 443 tcp 写入规则（自动备份，可 restore）"
             echo "  configure <blueprint> [dir]  交互生成本地 .env 配置"
             echo "  remove <name>       备份后删除项目"
             echo "  backup create <name> 备份项目"
@@ -725,7 +735,8 @@ run_command() {
             echo "  firewall status    防火墙/规则/端口状态"
             echo "  bench all          轻量网络测试合集"
             echo "  bench ip|dns|ping|http|speed|streaming|hardware  单项测试"
-            echo "  cluster status     集群节点只读状态"
+            echo "  cluster status     集群节点状态"
+            echo "  cluster add/run/copy/tt-selftest  远程节点管理"
             echo "  coverage           Kejilion 覆盖矩阵"
             echo "  swap <MB>           设置 swap"
             echo "  deps doctor         检查依赖"
