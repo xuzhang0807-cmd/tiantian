@@ -55,6 +55,7 @@ tt deploy --plan toko      # preview preset deployment plan
 tt apps list               # list personal blueprint app catalog
 tt apps show toko          # show app details from blueprint manifest/readme
 tt apps plan toko          # preview app deploy plan without writing files
+tt firewall plan allow 443 tcp # print backup steps and candidate firewall commands only
 tt configure toko /home/docker/shop  # generate local-only .env files interactively
 tt deploy toko             # deploy after local config exists
 tt deploy toko toko none 8450  # override type/domain/port

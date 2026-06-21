@@ -632,8 +632,9 @@ run_command() {
             case "${1:-status}" in
                 status|show) firewall_status ;;
                 ports) tools_ports ;;
+                plan) firewall_plan "${2:-allow}" "${3:-}" "${4:-tcp}" "${5:-}" ;;
                 menu) firewall_menu ;;
-                *) echo "用法: tt firewall [status|ports|menu]" ;;
+                *) echo "用法: tt firewall [status|ports|plan [allow|deny|delete] <port> [tcp|udp] [source_cidr]|menu]" ;;
             esac
             ;;
         bench|benchmark|testnet)
@@ -698,6 +699,7 @@ run_command() {
             echo "  apps list           应用目录"
             echo "  apps show <name>    应用详情"
             echo "  apps plan <name>    应用部署计划"
+            echo "  firewall plan allow 443 tcp  生成防火墙规则预案"
             echo "  configure <blueprint> [dir]  交互生成本地 .env 配置"
             echo "  remove <name>       备份后删除项目"
             echo "  backup create <name> 备份项目"

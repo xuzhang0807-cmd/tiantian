@@ -43,6 +43,7 @@ selftest_safe() {
     _selftest_run "网络信息" "只读" "\"$TT_HOME/tiantian.sh\" tools network >/dev/null || true"
     _selftest_run "Swap 状态" "只读" "\"$TT_HOME/tiantian.sh\" tools swap status >/dev/null || true"
     _selftest_run "防火墙状态" "只读" "\"$TT_HOME/tiantian.sh\" firewall status >/dev/null || true"
+    _selftest_run "防火墙规则预案" "只读" "\"$TT_HOME/tiantian.sh\" firewall plan allow 443 tcp >/dev/null"
     _selftest_run "SSH 安全状态" "只读" "\"$TT_HOME/tiantian.sh\" ops ssh >/dev/null || true"
     _selftest_run "DNS 诊断" "只读" "\"$TT_HOME/tiantian.sh\" ops dns >/dev/null || true"
     _selftest_run "定时任务状态" "只读" "\"$TT_HOME/tiantian.sh\" ops cron >/dev/null || true"
