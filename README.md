@@ -38,6 +38,9 @@ tt tools clean   # clean package/log cache after confirmation
 tt firewall status # read-only firewall/rules/listening-port report
 tt bench all     # lightweight IP/DNS/ping/HTTP tests
 tt bench ip      # public IP and ipinfo summary
+tt bench speed   # download speed test (Cloudflare/Hetzner ~100MB)
+tt bench streaming # streaming region unlock check (Netflix/YouTube/Disney+/etc)
+tt bench hardware # CPU/memory/disk/OpenSSL quick benchmark
 tt ops ssh       # read-only SSH security/listener/auth-key summary
 tt ops dns       # DNS resolver and name-resolution diagnostics
 tt ops cron      # crontab and systemd timer overview

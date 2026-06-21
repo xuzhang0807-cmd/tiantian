@@ -81,6 +81,8 @@ selftest_safe() {
     _selftest_run "后台工作区状态" "只读" "\"$TT_HOME/tiantian.sh\" ops tmux >/dev/null || true"
     _selftest_run "测试脚本 IP 信息" "轻量联网" "\"$TT_HOME/tiantian.sh\" bench ip >/dev/null || true"
     _selftest_run "测试脚本 DNS" "轻量联网" "\"$TT_HOME/tiantian.sh\" bench dns >/dev/null || true"
+    _selftest_run "流媒体检测" "轻量联网" "\"$TT_HOME/tiantian.sh\" bench streaming >/dev/null || true"
+    _selftest_run "硬件基准" "临时文件" "\"$TT_HOME/tiantian.sh\" bench hardware >/dev/null"
     _selftest_run "证书状态" "只读" "\"$TT_HOME/tiantian.sh\" cert status >/dev/null || true"
     _selftest_run "nginx 配置测试" "只读" "\"$TT_HOME/tiantian.sh\" nginx test >/dev/null || true"
     _selftest_run "项目列表" "只读" "\"$TT_HOME/tiantian.sh\" list >/dev/null || true"

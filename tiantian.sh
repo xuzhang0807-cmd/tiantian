@@ -645,13 +645,11 @@ run_command() {
                 dns) bench_dns ;;
                 ping) bench_ping ;;
                 http) bench_http ;;
-                all|safe)
-                    bench_ip
-                    bench_dns
-                    bench_ping
-                    bench_http
-                    ;;
-                *) echo "用法: tt bench [ip|dns|ping|http|all|menu]" ;;
+                speed) bench_speed ;;
+                streaming|media) bench_streaming ;;
+                hardware|hw) bench_hardware ;;
+                all|safe) bench_ip; bench_dns; bench_ping; bench_http ;;
+                *) echo "用法: tt bench [ip|dns|ping|http|speed|streaming|hardware|all|menu]" ;;
             esac
             ;;
         swap)
@@ -726,7 +724,7 @@ run_command() {
             echo "  ops ssh|dns|cron|bbr|process|disk|services|tmux 常用运维只读检查"
             echo "  firewall status    防火墙/规则/端口状态"
             echo "  bench all          轻量网络测试合集"
-            echo "  bench ip|dns|ping|http  单项网络测试"
+            echo "  bench ip|dns|ping|http|speed|streaming|hardware  单项测试"
             echo "  cluster status     集群节点只读状态"
             echo "  coverage           Kejilion 覆盖矩阵"
             echo "  swap <MB>           设置 swap"
