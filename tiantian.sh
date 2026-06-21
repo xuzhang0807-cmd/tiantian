@@ -24,6 +24,7 @@ source "${TT_HOME}/lib/tools.sh"
 source "${TT_HOME}/lib/ops.sh"
 source "${TT_HOME}/lib/tasks.sh"
 source "${TT_HOME}/lib/security.sh"
+source "${TT_HOME}/lib/disk.sh"
 source "${TT_HOME}/lib/firewall.sh"
 source "${TT_HOME}/lib/bench.sh"
 source "${TT_HOME}/lib/cluster.sh"
@@ -79,7 +80,8 @@ show_menu() {
     echo -e "  ${GREEN}14${NC}) 应用目录"
     echo -e "  ${GREEN}15${NC}) 任务计划"
     echo -e "  ${GREEN}16${NC}) 安全工具"
-    echo -e "  ${GREEN}17${NC}) 高级操作"
+    echo -e "  ${GREEN}17${NC}) 磁盘管理"
+    echo -e "  ${GREEN}18${NC}) 高级操作"
     echo ""
     echo -e "  ${GREEN}0${NC}) 退出"
     echo ""
@@ -342,6 +344,9 @@ main_loop() {
                 security_menu
                 ;;
             17)
+                disk_menu
+                ;;
+            18)
                 while true; do
                     show_advanced_menu
                     read -p "  tt/advanced> " achoice
@@ -404,6 +409,7 @@ run_command() {
         jq) cmd="cluster" ;;
         rw) cmd="tasks" ;;
         aq) cmd="security" ;;
+        cp) cmd="disk" ;;
         fg) cmd="coverage" ;;
         yy) cmd="apps" ;;
         测试|测速|cesu) cmd="bench" ;;
@@ -621,6 +627,18 @@ run_command() {
                 *) echo "用法: tt security [status|fail2ban-plan|fail2ban-install|clamav-plan [dir]|clamav-scan [dir]|menu]" ;;
             esac
             ;;
+        disk|disks|mounts)
+            case "${1:-overview}" in
+                overview|list|ls) disk_overview ;;
+                mounts|mount|fstab) disk_mounts ;;
+                candidates|free|unused) disk_candidates ;;
+                health|smart) disk_health ;;
+                mount-plan|plan-mount) disk_mount_plan "${2:-}" "${3:-}" "${4:-}" ;;
+                format-plan|plan-format) disk_format_plan "${2:-}" "${3:-ext4}" "${4:-}" ;;
+                menu) disk_menu ;;
+                *) echo "用法: tt disk [overview|mounts|candidates|health|mount-plan <device> <mountpoint> [fstype]|format-plan <device> [ext4|xfs] [label]|menu]" ;;
+            esac
+            ;;
         apps|app|market)
             case "${1:-list}" in
                 list|ls) apps_list ;;
@@ -773,6 +791,8 @@ run_command() {
             echo "  tasks add/plan/run/schedule  远程同步任务管理"
             echo "  security status     fail2ban/ClamAV/SSH 安全状态"
             echo "  security fail2ban-plan|clamav-plan  安全工具执行预案"
+            echo "  disk overview       磁盘/分区/文件系统总览"
+            echo "  disk mount-plan|format-plan  挂载/格式化预案（不执行）"
             echo "  firewall status    防火墙/规则/端口状态"
             echo "  bench all          轻量网络测试合集"
             echo "  bench ip|dns|ping|http|speed|streaming|hardware  单项测试"
@@ -793,7 +813,7 @@ run_command() {
             echo "拼音快捷命令:"
             echo "  jc=检测  zt=状态  bs=部署  sc=删除  bf=备份  hf=恢复"
             echo "  xm=项目  rq=容器  rj=日志  zs=证书  wg=网关  dk=端口"
-            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
+            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
             echo ""
             echo "不带参数运行进入交互菜单。"
             ;;

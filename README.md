@@ -72,6 +72,11 @@ tt tasks schedule backup_www daily # add TT-managed crontab entry
 tt security status # fail2ban/ClamAV/SSH security overview
 tt security fail2ban-plan # show install/enable plan without changing system
 tt security clamav-plan /home # show containerized ClamAV read-only scan plan
+tt disk overview # disk, partition, filesystem and inode overview
+tt disk mounts # mount table and /etc/fstab overview
+tt disk candidates # unmounted partition candidates, read-only
+tt disk mount-plan /dev/vdb1 /data ext4 # print mount/fstab plan without writing
+tt disk format-plan /dev/vdb1 ext4 data # print destructive format plan without executing
 tt configure toko /home/docker/shop  # generate local-only .env files interactively
 tt deploy toko             # deploy after local config exists
 tt deploy toko toko none 8450  # override type/domain/port
