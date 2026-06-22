@@ -49,6 +49,10 @@ tt ssh harden-plan 22 # preview SSH hardening drop-in without writing
 tt ssh backup    # backup sshd_config and sshd_config.d
 tt ssh harden-write 22 --yes # write SSH hardening drop-in after explicit confirmation
 tt ssh restore <backup_dir> # restore SSH config from backup
+tt users list    # system user/sudo/lock overview
+tt users create-plan deploy sudo # preview creating a sudo-capable user
+tt users create deploy sudo --yes # create user after backup and explicit confirmation
+tt users delete-plan deploy # preview destructive user removal
 tt ops dns       # DNS resolver and name-resolution diagnostics
 tt ops cron      # crontab and systemd timer overview
 tt ops bbr       # TCP congestion / BBR status

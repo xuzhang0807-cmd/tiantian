@@ -92,6 +92,8 @@ selftest_safe() {
     _selftest_run "Docker 清理预案" "只读" "\"$TT_HOME/tiantian.sh\" docker prune-plan safe >/dev/null || true"
     _selftest_run "SSH 加固预案" "只读" "\"$TT_HOME/tiantian.sh\" ssh harden-plan 22 >/dev/null || true"
     _selftest_run "SSH 配置备份" "临时文件" "TT_SSH_BACKUP_ROOT=/tmp/tt-selftest-ssh-backup-$$ \"$TT_HOME/tiantian.sh\" ssh backup >/dev/null || true; rm -rf /tmp/tt-selftest-ssh-backup-$$"
+    _selftest_run "用户权限概览" "只读" "\"$TT_HOME/tiantian.sh\" users list >/dev/null || true"
+    _selftest_run "用户创建预案" "只读" "\"$TT_HOME/tiantian.sh\" users create-plan ttselftest normal >/dev/null || true"
     _selftest_run "集群节点状态" "只读" "\"$TT_HOME/tiantian.sh\" cluster status >/dev/null || true"
     _selftest_run "集群节点列表" "只读" "\"$TT_HOME/tiantian.sh\" cluster list >/dev/null || true"
     _selftest_run "同步任务列表" "只读" "\"$TT_HOME/tiantian.sh\" tasks list >/dev/null || true"

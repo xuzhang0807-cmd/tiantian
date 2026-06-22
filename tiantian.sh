@@ -25,6 +25,7 @@ source "${TT_HOME}/lib/ops.sh"
 source "${TT_HOME}/lib/tasks.sh"
 source "${TT_HOME}/lib/security.sh"
 source "${TT_HOME}/lib/ssh.sh"
+source "${TT_HOME}/lib/users.sh"
 source "${TT_HOME}/lib/disk.sh"
 source "${TT_HOME}/lib/firewall.sh"
 source "${TT_HOME}/lib/bench.sh"
@@ -83,7 +84,8 @@ show_menu() {
     echo -e "  ${GREEN}16${NC}) 安全工具"
     echo -e "  ${GREEN}17${NC}) 磁盘管理"
     echo -e "  ${GREEN}18${NC}) SSH 管理"
-    echo -e "  ${GREEN}19${NC}) 高级操作"
+    echo -e "  ${GREEN}19${NC}) 用户管理"
+    echo -e "  ${GREEN}20${NC}) 高级操作"
     echo ""
     echo -e "  ${GREEN}0${NC}) 退出"
     echo ""
@@ -362,6 +364,9 @@ main_loop() {
                 ssh_menu
                 ;;
             19)
+                users_menu
+                ;;
+            20)
                 while true; do
                     show_advanced_menu
                     read -p "  tt/advanced> " achoice
@@ -426,6 +431,7 @@ run_command() {
         aq) cmd="security" ;;
         cp) cmd="disk" ;;
         sshgl) cmd="ssh" ;;
+        yh) cmd="users" ;;
         fg) cmd="coverage" ;;
         yy) cmd="apps" ;;
         测试|测速|cesu) cmd="bench" ;;
@@ -620,6 +626,20 @@ run_command() {
                 restore|rollback) ssh_restore "${2:-}" ;;
                 menu) ssh_menu ;;
                 *) echo "用法: tt ssh [status|harden-plan [port]|backup|harden-write [port] --yes|restore <backup_dir>|menu]" ;;
+            esac
+            ;;
+        users|user|accounts)
+            case "${1:-list}" in
+                list|ls|status) users_list ;;
+                create-plan|plan-create) users_plan_create "${2:-}" "${3:-normal}" ;;
+                create|add) users_create "${2:-}" "${3:-normal}" "${4:-}" ;;
+                lock-plan|plan-lock) users_plan_lock "${2:-}" ;;
+                lock) users_lock "${2:-}" "${3:-}" ;;
+                delete-plan|rm-plan|plan-delete) users_plan_delete "${2:-}" ;;
+                delete|remove|rm) users_delete "${2:-}" "${3:-}" ;;
+                backup) users_backup ;;
+                menu) users_menu ;;
+                *) echo "用法: tt users [list|create-plan <user> [normal|sudo]|create <user> [normal|sudo] --yes|lock-plan <user>|lock <user> --yes|delete-plan <user>|delete <user> --yes|backup|menu]" ;;
             esac
             ;;
         cluster|nodes)
@@ -827,6 +847,9 @@ run_command() {
             echo "  ops ssh|dns|cron|bbr|process|disk|services|tmux 常用运维只读检查"
             echo "  ssh harden-plan [port] SSH 加固预案"
             echo "  ssh harden-write [port] --yes 写入 SSH 加固（先备份，可 restore）"
+            echo "  users list         用户/权限概览"
+            echo "  users create-plan <user> [normal|sudo] 创建用户预案"
+            echo "  users create <user> [normal|sudo] --yes 创建用户（先备份）"
             echo "  tasks list          Rsync 任务列表"
             echo "  tasks add/plan/run/schedule  远程同步任务管理"
             echo "  security status     fail2ban/ClamAV/SSH 安全状态"
@@ -856,7 +879,7 @@ run_command() {
             echo "拼音快捷命令:"
             echo "  jc=检测  zt=状态  bs=部署  sc=删除  bf=备份  hf=恢复"
             echo "  xm=项目  rq=容器  rj=日志  zs=证书  wg=网关  dk=端口"
-            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  sshgl=SSH  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
+            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  sshgl=SSH  yh=用户  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
             echo ""
             echo "不带参数运行进入交互菜单。"
             ;;
