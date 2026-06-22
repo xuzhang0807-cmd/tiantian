@@ -23,6 +23,7 @@ coverage_report() {
     printf '%-24s %-10s %s\n' "安全工具" "✅" "security status/fail2ban/clamav + ssh harden-plan/backup/write/restore"
     printf '%-24s %-10s %s\n' "用户/权限管理" "✅" "users list/create-plan/create/lock/delete-plan/delete，写入前备份且需 --yes"
     printf '%-24s %-10s %s\n' "hosts 解析管理" "✅" "hosts list/backup/add-plan/add/delete-plan/delete/restore，写入前备份且需 --yes"
+    printf '%-24s %-10s %s\n' "系统基础设置" "✅" "system status/backup/timezone/hostname/ip-prefer/restore，写入前备份且需 --yes"
     printf '%-24s %-10s %s\n' "磁盘/挂载" "✅" "disk overview/mounts/candidates/health/plan + format-write/mount-write/unmount-write（--yes 高风险写入）"
     printf '%-24s %-10s %s\n' "应用市场" "✅" "apps list/show/plan，从 blueprints 生成个人应用目录"
     printf '%-24s %-10s %s\n' "内核/重装/强调优" "⛔" "高风险，不默认私有化；仅做只读检查或明确授权流程"

@@ -27,6 +27,7 @@ source "${TT_HOME}/lib/security.sh"
 source "${TT_HOME}/lib/ssh.sh"
 source "${TT_HOME}/lib/users.sh"
 source "${TT_HOME}/lib/hosts.sh"
+source "${TT_HOME}/lib/system.sh"
 source "${TT_HOME}/lib/disk.sh"
 source "${TT_HOME}/lib/firewall.sh"
 source "${TT_HOME}/lib/bench.sh"
@@ -87,7 +88,8 @@ show_menu() {
     echo -e "  ${GREEN}18${NC}) SSH 管理"
     echo -e "  ${GREEN}19${NC}) 用户管理"
     echo -e "  ${GREEN}20${NC}) hosts 管理"
-    echo -e "  ${GREEN}21${NC}) 高级操作"
+    echo -e "  ${GREEN}21${NC}) 系统基础设置"
+    echo -e "  ${GREEN}22${NC}) 高级操作"
     echo ""
     echo -e "  ${GREEN}0${NC}) 退出"
     echo ""
@@ -372,6 +374,9 @@ main_loop() {
                 hosts_menu
                 ;;
             21)
+                system_menu
+                ;;
+            22)
                 while true; do
                     show_advanced_menu
                     read -p "  tt/advanced> " achoice
@@ -438,6 +443,7 @@ run_command() {
         sshgl) cmd="ssh" ;;
         yh) cmd="users" ;;
         hosts|host|jx) cmd="hosts" ;;
+        xt|system|sys) cmd="system" ;;
         fg) cmd="coverage" ;;
         yy) cmd="apps" ;;
         测试|测速|cesu) cmd="bench" ;;
@@ -661,6 +667,22 @@ run_command() {
                 *) echo "用法: tt hosts [list|backup|add-plan <ip> <name>|add <ip> <name> --yes|delete-plan <name>|delete <name> --yes|restore <backup_file|dir> --yes|menu]" ;;
             esac
             ;;
+        system|sys)
+            case "${1:-status}" in
+                status|show) system_status ;;
+                backup) system_backup ;;
+                timezone-plan|tz-plan|time-plan) system_timezone_plan "${2:-}" ;;
+                timezone-set|tz-set|time-set) system_timezone_set "${2:-}" "${3:-}" ;;
+                hostname-plan|host-plan) system_hostname_plan "${2:-}" ;;
+                hostname-set|host-set) system_hostname_set "${2:-}" "${3:-}" ;;
+                ip-prefer-status|ip-status) system_ip_prefer_status ;;
+                ip-prefer-plan|ip-plan) system_ip_prefer_plan "${2:-status}" ;;
+                ip-prefer-set|ip-set) system_ip_prefer_set "${2:-}" "${3:-}" ;;
+                restore|rollback) system_restore "${2:-}" "${3:-}" ;;
+                menu) system_menu ;;
+                *) echo "用法: tt system [status|backup|timezone-plan <zone>|timezone-set <zone> --yes|hostname-plan <name>|hostname-set <name> --yes|ip-prefer-status|ip-prefer-plan [ipv4|default]|ip-prefer-set <ipv4|default> --yes|restore <backup_dir> --yes|menu]" ;;
+            esac
+            ;;
         cluster|nodes)
             case "${1:-status}" in
                 status) cluster_status ;;
@@ -872,6 +894,13 @@ run_command() {
             echo "  hosts list         查看 /etc/hosts"
             echo "  hosts add-plan <ip> <name> 新增 hosts 预案"
             echo "  hosts add <ip> <name> --yes 写入 hosts（先备份）"
+            echo "  system status      主机名/时区/IPv4优先级状态"
+            echo "  system timezone-plan Asia/Shanghai  时区修改预案"
+            echo "  system timezone-set Asia/Shanghai --yes 修改时区（先备份）"
+            echo "  system hostname-plan <name> 主机名修改预案"
+            echo "  system hostname-set <name> --yes 修改主机名（先备份）"
+            echo "  system ip-prefer-plan ipv4|default 地址族优先级预案"
+            echo "  system ip-prefer-set ipv4|default --yes 写入 /etc/gai.conf（先备份）"
             echo "  tasks list          Rsync 任务列表"
             echo "  tasks add/plan/run/schedule  远程同步任务管理"
             echo "  security status     fail2ban/ClamAV/SSH 安全状态"
@@ -901,7 +930,7 @@ run_command() {
             echo "拼音快捷命令:"
             echo "  jc=检测  zt=状态  bs=部署  sc=删除  bf=备份  hf=恢复"
             echo "  xm=项目  rq=容器  rj=日志  zs=证书  wg=网关  dk=端口"
-            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  sshgl=SSH  yh=用户  jx=hosts  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
+            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  sshgl=SSH  yh=用户  jx=hosts  xt=系统设置  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
             echo ""
             echo "不带参数运行进入交互菜单。"
             ;;
