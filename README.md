@@ -85,6 +85,7 @@ English commands are the primary documented interface. Short aliases are conveni
 - `jx`: hosts management, same as `tt hosts`
 - `xt`: system settings, same as `tt system`
 - `lsjl`: shell history, same as `tt history`
+- `xtrz`: system logs, same as `tt syslog`
 - `yy`: app catalog, same as `tt apps`
 - `fg`: coverage, same as `tt coverage`
 - `cs`: selftest, same as `tt selftest`
@@ -116,7 +117,8 @@ Run `tt` without arguments to enter the menu:
 20. hosts: list/add/delete/restore with backups
 21. System settings: timezone, hostname, IPv4 preference
 22. Shell history: files/list/search/backup/clear with backup guard
-23. Advanced: certbot hook, TT update, logs, dependencies
+23. System logs: journal overview/recent/service/auth/vacuum plan
+24. Advanced: certbot hook, TT update, logs, dependencies
 
 ## Health, Detection, and Profile
 
@@ -243,6 +245,50 @@ printf 'echo hello\ntt history test\n' > "$tmp_home/.bash_history"
 HOME="$tmp_home" TT_BACKUP_ROOT="$tmp_home/backups" tt history backup
 HOME="$tmp_home" TT_BACKUP_ROOT="$tmp_home/backups" tt history clear --yes
 test ! -s "$tmp_home/.bash_history"
+```
+
+## System Logs
+
+Inspired by Kejilion's system log panel, TT provides journal and authentication log checks with preview-first cleanup.
+
+```bash
+tt syslog overview
+tt syslog recent 100
+tt syslog service ssh 100
+tt syslog auth 50
+tt syslog vacuum-plan 7d
+tt syslog vacuum 7d --yes
+tt syslog menu
+```
+
+Aliases:
+
+```bash
+tt xtrz overview
+tt journal recent 20
+```
+
+Supported cleanup modes:
+
+- `7d`, `3d`, `1d`: keep recent journal entries by time.
+- `500M`, `1G`: limit journal size.
+
+Safety notes:
+
+- `overview`, `recent`, `service`, `auth`, and `vacuum-plan` are read-only.
+- `vacuum <mode> --yes` runs `journalctl --rotate` and `journalctl --vacuum-*` only; it does not delete ordinary `/var/log` files.
+- Interactive cleanup asks for `YES` after showing the plan.
+- If `journalctl` is unavailable, TT reports the missing dependency instead of falling back to destructive file deletion.
+
+Test checklist:
+
+```bash
+tt syslog overview
+tt syslog recent 5
+tt syslog service ssh 5 || true
+tt syslog auth 5
+tt syslog vacuum-plan 7d
+tt syslog vacuum 500M --yes
 ```
 
 ## nginx Gateway

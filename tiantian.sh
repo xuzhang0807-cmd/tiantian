@@ -29,6 +29,7 @@ source "${TT_HOME}/lib/users.sh"
 source "${TT_HOME}/lib/hosts.sh"
 source "${TT_HOME}/lib/system.sh"
 source "${TT_HOME}/lib/history.sh"
+source "${TT_HOME}/lib/syslog.sh"
 source "${TT_HOME}/lib/disk.sh"
 source "${TT_HOME}/lib/firewall.sh"
 source "${TT_HOME}/lib/bench.sh"
@@ -91,7 +92,8 @@ show_menu() {
     echo -e "  ${GREEN}20${NC}) hosts 管理"
     echo -e "  ${GREEN}21${NC}) 系统基础设置"
     echo -e "  ${GREEN}22${NC}) 命令行历史"
-    echo -e "  ${GREEN}23${NC}) 高级操作"
+    echo -e "  ${GREEN}23${NC}) 系统日志管理"
+    echo -e "  ${GREEN}24${NC}) 高级操作"
     echo ""
     echo -e "  ${GREEN}0${NC}) 退出"
     echo ""
@@ -382,6 +384,9 @@ main_loop() {
                 history_menu
                 ;;
             23)
+                syslog_menu
+                ;;
+            24)
                 while true; do
                     show_advanced_menu
                     read -p "  tt/advanced> " achoice
@@ -450,6 +455,7 @@ run_command() {
         hosts|host|jx) cmd="hosts" ;;
         xt|system|sys) cmd="system" ;;
         lsjl|history|hist) cmd="history" ;;
+        xtrz|syslog|journal) cmd="syslog" ;;
         fg) cmd="coverage" ;;
         yy) cmd="apps" ;;
         测试|测速|cesu) cmd="bench" ;;
@@ -701,6 +707,18 @@ run_command() {
                 *) echo "用法: tt history [files|list [limit]|search <keyword> [limit]|backup|clear-plan|clear --yes|menu]" ;;
             esac
             ;;
+        syslog|journal)
+            case "${1:-overview}" in
+                overview|status) syslog_overview ;;
+                recent|tail) syslog_recent "${2:-100}" ;;
+                service|unit) syslog_service "${2:-}" "${3:-100}" ;;
+                auth|login) syslog_auth "${2:-50}" ;;
+                vacuum-plan|plan) syslog_vacuum_plan "${2:-7d}" ;;
+                vacuum|clean) syslog_vacuum "${2:-}" "${3:-}" ;;
+                menu) syslog_menu ;;
+                *) echo "用法: tt syslog [overview|recent [limit]|service <name> [limit]|auth [limit]|vacuum-plan [7d|3d|1d|500M|1G]|vacuum <mode> --yes|menu]" ;;
+            esac
+            ;;
         cluster|nodes)
             case "${1:-status}" in
                 status) cluster_status ;;
@@ -925,6 +943,12 @@ run_command() {
             echo "  history backup     备份 Shell 历史记录"
             echo "  history clear-plan 清空历史预案"
             echo "  history clear --yes 备份后清空历史"
+            echo "  syslog overview    系统日志占用概览"
+            echo "  syslog recent [N]  最近 journal 日志"
+            echo "  syslog service <name> [N] 指定服务日志"
+            echo "  syslog auth [N]    登录/认证日志"
+            echo "  syslog vacuum-plan [7d|3d|1d|500M|1G] journal 清理预案"
+            echo "  syslog vacuum <mode> --yes 执行 journal 清理"
             echo "  tasks list          Rsync 任务列表"
             echo "  tasks add/plan/run/schedule  远程同步任务管理"
             echo "  security status     fail2ban/ClamAV/SSH 安全状态"
@@ -954,7 +978,7 @@ run_command() {
             echo "拼音快捷命令:"
             echo "  jc=检测  zt=状态  bs=部署  sc=删除  bf=备份  hf=恢复"
             echo "  xm=项目  rq=容器  rj=日志  zs=证书  wg=网关  dk=端口"
-            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  sshgl=SSH  yh=用户  jx=hosts  xt=系统设置  lsjl=历史记录  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
+            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  sshgl=SSH  yh=用户  jx=hosts  xt=系统设置  lsjl=历史记录  xtrz=系统日志  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
             echo ""
             echo "不带参数运行进入交互菜单。"
             ;;

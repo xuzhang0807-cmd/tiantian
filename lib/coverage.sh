@@ -25,6 +25,7 @@ coverage_report() {
     printf '%-24s %-10s %s\n' "hosts 解析管理" "✅" "hosts list/backup/add-plan/add/delete-plan/delete/restore，写入前备份且需 --yes"
     printf '%-24s %-10s %s\n' "系统基础设置" "✅" "system status/backup/timezone/hostname/ip-prefer/restore，写入前备份且需 --yes"
     printf '%-24s %-10s %s\n' "命令行历史记录" "✅" "history files/list/search/backup/clear-plan/clear，清空前备份且需 --yes"
+    printf '%-24s %-10s %s\n' "系统日志管理" "✅" "syslog overview/recent/service/auth/vacuum-plan/vacuum，journal 清理需 --yes"
     printf '%-24s %-10s %s\n' "磁盘/挂载" "✅" "disk overview/mounts/candidates/health/plan + format-write/mount-write/unmount-write（--yes 高风险写入）"
     printf '%-24s %-10s %s\n' "应用市场" "✅" "apps list/show/plan，从 blueprints 生成个人应用目录"
     printf '%-24s %-10s %s\n' "内核/重装/强调优" "⛔" "高风险，不默认私有化；仅做只读检查或明确授权流程"
