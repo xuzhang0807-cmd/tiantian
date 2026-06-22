@@ -84,6 +84,7 @@ English commands are the primary documented interface. Short aliases are conveni
 - `yh`: user management, same as `tt users`
 - `jx`: hosts management, same as `tt hosts`
 - `xt`: system settings, same as `tt system`
+- `lsjl`: shell history, same as `tt history`
 - `yy`: app catalog, same as `tt apps`
 - `fg`: coverage, same as `tt coverage`
 - `cs`: selftest, same as `tt selftest`
@@ -114,7 +115,8 @@ Run `tt` without arguments to enter the menu:
 19. Users: list/create/lock/delete with backups
 20. hosts: list/add/delete/restore with backups
 21. System settings: timezone, hostname, IPv4 preference
-22. Advanced: certbot hook, TT update, logs, dependencies
+22. Shell history: files/list/search/backup/clear with backup guard
+23. Advanced: certbot hook, TT update, logs, dependencies
 
 ## Health, Detection, and Profile
 
@@ -194,6 +196,54 @@ tt system menu
 ```
 
 Backups default to `/home/tt-backups/system/<timestamp>`, or `TT_SYSTEM_BACKUP_ROOT` when set.
+
+## Shell History
+
+Inspired by Kejilion's command-line history viewer, TT adds safer history inspection with backup-first destructive actions.
+
+```bash
+tt history files
+tt history list 80
+tt history search docker 50
+tt history backup
+tt history clear-plan
+tt history clear --yes
+tt history menu
+```
+
+Aliases:
+
+```bash
+tt lsjl files
+tt hist search ssh 20
+```
+
+Detected history files:
+
+- Bash: `~/.bash_history`
+- Zsh: `~/.zsh_history`
+- BusyBox ash: `~/.ash_history`
+- Fish: `~/.local/share/fish/fish_history`
+
+Safety notes:
+
+- `files`, `list`, `search`, and `clear-plan` are read-only.
+- `backup` copies discovered history files to `${TT_BACKUP_ROOT}/history/<timestamp>` or `${TT_HISTORY_BACKUP_ROOT}/<timestamp>`.
+- `clear --yes` first creates a backup, then truncates discovered history files while keeping file paths in place.
+- It does not modify shell profile files or alias `rm`; TT keeps history management explicit and reversible.
+
+Test checklist:
+
+```bash
+tt history files
+tt history list 5
+tt history search tt 10
+tmp_home=$(mktemp -d)
+printf 'echo hello\ntt history test\n' > "$tmp_home/.bash_history"
+HOME="$tmp_home" TT_BACKUP_ROOT="$tmp_home/backups" tt history backup
+HOME="$tmp_home" TT_BACKUP_ROOT="$tmp_home/backups" tt history clear --yes
+test ! -s "$tmp_home/.bash_history"
+```
 
 ## nginx Gateway
 

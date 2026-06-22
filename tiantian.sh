@@ -28,6 +28,7 @@ source "${TT_HOME}/lib/ssh.sh"
 source "${TT_HOME}/lib/users.sh"
 source "${TT_HOME}/lib/hosts.sh"
 source "${TT_HOME}/lib/system.sh"
+source "${TT_HOME}/lib/history.sh"
 source "${TT_HOME}/lib/disk.sh"
 source "${TT_HOME}/lib/firewall.sh"
 source "${TT_HOME}/lib/bench.sh"
@@ -89,7 +90,8 @@ show_menu() {
     echo -e "  ${GREEN}19${NC}) 用户管理"
     echo -e "  ${GREEN}20${NC}) hosts 管理"
     echo -e "  ${GREEN}21${NC}) 系统基础设置"
-    echo -e "  ${GREEN}22${NC}) 高级操作"
+    echo -e "  ${GREEN}22${NC}) 命令行历史"
+    echo -e "  ${GREEN}23${NC}) 高级操作"
     echo ""
     echo -e "  ${GREEN}0${NC}) 退出"
     echo ""
@@ -377,6 +379,9 @@ main_loop() {
                 system_menu
                 ;;
             22)
+                history_menu
+                ;;
+            23)
                 while true; do
                     show_advanced_menu
                     read -p "  tt/advanced> " achoice
@@ -444,6 +449,7 @@ run_command() {
         yh) cmd="users" ;;
         hosts|host|jx) cmd="hosts" ;;
         xt|system|sys) cmd="system" ;;
+        lsjl|history|hist) cmd="history" ;;
         fg) cmd="coverage" ;;
         yy) cmd="apps" ;;
         测试|测速|cesu) cmd="bench" ;;
@@ -683,6 +689,18 @@ run_command() {
                 *) echo "用法: tt system [status|backup|timezone-plan <zone>|timezone-set <zone> --yes|hostname-plan <name>|hostname-set <name> --yes|ip-prefer-status|ip-prefer-plan [ipv4|default]|ip-prefer-set <ipv4|default> --yes|restore <backup_dir> --yes|menu]" ;;
             esac
             ;;
+        history|hist)
+            case "${1:-list}" in
+                files|status) history_files ;;
+                list|show|tail) history_list "${2:-80}" ;;
+                search|grep) history_search "${2:-}" "${3:-80}" ;;
+                backup) history_backup ;;
+                clear-plan|plan) history_clear_plan ;;
+                clear) history_clear "${2:-}" ;;
+                menu) history_menu ;;
+                *) echo "用法: tt history [files|list [limit]|search <keyword> [limit]|backup|clear-plan|clear --yes|menu]" ;;
+            esac
+            ;;
         cluster|nodes)
             case "${1:-status}" in
                 status) cluster_status ;;
@@ -901,6 +919,12 @@ run_command() {
             echo "  system hostname-set <name> --yes 修改主机名（先备份）"
             echo "  system ip-prefer-plan ipv4|default 地址族优先级预案"
             echo "  system ip-prefer-set ipv4|default --yes 写入 /etc/gai.conf（先备份）"
+            echo "  history files      Shell 历史文件概览"
+            echo "  history list [N]   查看最近 N 行历史"
+            echo "  history search <keyword> [N] 搜索历史记录"
+            echo "  history backup     备份 Shell 历史记录"
+            echo "  history clear-plan 清空历史预案"
+            echo "  history clear --yes 备份后清空历史"
             echo "  tasks list          Rsync 任务列表"
             echo "  tasks add/plan/run/schedule  远程同步任务管理"
             echo "  security status     fail2ban/ClamAV/SSH 安全状态"
@@ -930,7 +954,7 @@ run_command() {
             echo "拼音快捷命令:"
             echo "  jc=检测  zt=状态  bs=部署  sc=删除  bf=备份  hf=恢复"
             echo "  xm=项目  rq=容器  rj=日志  zs=证书  wg=网关  dk=端口"
-            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  sshgl=SSH  yh=用户  jx=hosts  xt=系统设置  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
+            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  sshgl=SSH  yh=用户  jx=hosts  xt=系统设置  lsjl=历史记录  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
             echo ""
             echo "不带参数运行进入交互菜单。"
             ;;
