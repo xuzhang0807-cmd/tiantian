@@ -26,6 +26,7 @@ source "${TT_HOME}/lib/tasks.sh"
 source "${TT_HOME}/lib/security.sh"
 source "${TT_HOME}/lib/ssh.sh"
 source "${TT_HOME}/lib/users.sh"
+source "${TT_HOME}/lib/hosts.sh"
 source "${TT_HOME}/lib/disk.sh"
 source "${TT_HOME}/lib/firewall.sh"
 source "${TT_HOME}/lib/bench.sh"
@@ -85,7 +86,8 @@ show_menu() {
     echo -e "  ${GREEN}17${NC}) 磁盘管理"
     echo -e "  ${GREEN}18${NC}) SSH 管理"
     echo -e "  ${GREEN}19${NC}) 用户管理"
-    echo -e "  ${GREEN}20${NC}) 高级操作"
+    echo -e "  ${GREEN}20${NC}) hosts 管理"
+    echo -e "  ${GREEN}21${NC}) 高级操作"
     echo ""
     echo -e "  ${GREEN}0${NC}) 退出"
     echo ""
@@ -367,6 +369,9 @@ main_loop() {
                 users_menu
                 ;;
             20)
+                hosts_menu
+                ;;
+            21)
                 while true; do
                     show_advanced_menu
                     read -p "  tt/advanced> " achoice
@@ -432,6 +437,7 @@ run_command() {
         cp) cmd="disk" ;;
         sshgl) cmd="ssh" ;;
         yh) cmd="users" ;;
+        hosts|host|jx) cmd="hosts" ;;
         fg) cmd="coverage" ;;
         yy) cmd="apps" ;;
         测试|测速|cesu) cmd="bench" ;;
@@ -642,6 +648,19 @@ run_command() {
                 *) echo "用法: tt users [list|create-plan <user> [normal|sudo]|create <user> [normal|sudo] --yes|lock-plan <user>|lock <user> --yes|delete-plan <user>|delete <user> --yes|backup|menu]" ;;
             esac
             ;;
+        hosts|host)
+            case "${1:-list}" in
+                list|ls|status) hosts_list ;;
+                backup) hosts_backup ;;
+                add-plan|plan-add) hosts_plan_add "${2:-}" "${3:-}" ;;
+                add) hosts_add "${2:-}" "${3:-}" "${4:-}" ;;
+                delete-plan|rm-plan|plan-delete) hosts_plan_delete "${2:-}" ;;
+                delete|remove|rm) hosts_delete "${2:-}" "${3:-}" ;;
+                restore|rollback) hosts_restore "${2:-}" "${3:-}" ;;
+                menu) hosts_menu ;;
+                *) echo "用法: tt hosts [list|backup|add-plan <ip> <name>|add <ip> <name> --yes|delete-plan <name>|delete <name> --yes|restore <backup_file|dir> --yes|menu]" ;;
+            esac
+            ;;
         cluster|nodes)
             case "${1:-status}" in
                 status) cluster_status ;;
@@ -850,6 +869,9 @@ run_command() {
             echo "  users list         用户/权限概览"
             echo "  users create-plan <user> [normal|sudo] 创建用户预案"
             echo "  users create <user> [normal|sudo] --yes 创建用户（先备份）"
+            echo "  hosts list         查看 /etc/hosts"
+            echo "  hosts add-plan <ip> <name> 新增 hosts 预案"
+            echo "  hosts add <ip> <name> --yes 写入 hosts（先备份）"
             echo "  tasks list          Rsync 任务列表"
             echo "  tasks add/plan/run/schedule  远程同步任务管理"
             echo "  security status     fail2ban/ClamAV/SSH 安全状态"
@@ -879,7 +901,7 @@ run_command() {
             echo "拼音快捷命令:"
             echo "  jc=检测  zt=状态  bs=部署  sc=删除  bf=备份  hf=恢复"
             echo "  xm=项目  rq=容器  rj=日志  zs=证书  wg=网关  dk=端口"
-            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  sshgl=SSH  yh=用户  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
+            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  sshgl=SSH  yh=用户  jx=hosts  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
             echo ""
             echo "不带参数运行进入交互菜单。"
             ;;

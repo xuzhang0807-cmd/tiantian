@@ -53,6 +53,10 @@ tt users list    # system user/sudo/lock overview
 tt users create-plan deploy sudo # preview creating a sudo-capable user
 tt users create deploy sudo --yes # create user after backup and explicit confirmation
 tt users delete-plan deploy # preview destructive user removal
+tt hosts list    # view /etc/hosts with line numbers
+tt hosts add-plan 127.0.0.1 local.test # preview adding a hosts record
+tt hosts add 127.0.0.1 local.test --yes # add hosts record after backup
+tt hosts delete-plan local.test # preview deleting matching hosts records
 tt ops dns       # DNS resolver and name-resolution diagnostics
 tt ops cron      # crontab and systemd timer overview
 tt ops bbr       # TCP congestion / BBR status

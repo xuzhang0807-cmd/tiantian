@@ -22,9 +22,10 @@ coverage_report() {
     printf '%-24s %-10s %s\n' "任务/同步/计划" "✅" "tasks add/list/plan/run/schedule/unschedule，TT 管理 rsync+cron"
     printf '%-24s %-10s %s\n' "安全工具" "✅" "security status/fail2ban/clamav + ssh harden-plan/backup/write/restore"
     printf '%-24s %-10s %s\n' "用户/权限管理" "✅" "users list/create-plan/create/lock/delete-plan/delete，写入前备份且需 --yes"
+    printf '%-24s %-10s %s\n' "hosts 解析管理" "✅" "hosts list/backup/add-plan/add/delete-plan/delete/restore，写入前备份且需 --yes"
     printf '%-24s %-10s %s\n' "磁盘/挂载" "✅" "disk overview/mounts/candidates/health/plan + format-write/mount-write/unmount-write（--yes 高风险写入）"
     printf '%-24s %-10s %s\n' "应用市场" "✅" "apps list/show/plan，从 blueprints 生成个人应用目录"
     printf '%-24s %-10s %s\n' "内核/重装/强调优" "⛔" "高风险，不默认私有化；仅做只读检查或明确授权流程"
     echo ""
-    echo "结论：核心个人部署工具链、个人应用目录、备份恢复演练、防火墙写入/回滚、远程节点管理、同步任务计划、Docker 清理、SSH 加固、用户权限管理、安全工具预案和磁盘挂载规划已覆盖；内核/重装类高风险动作仍保留为明确授权边界。"
+    echo "结论：核心个人部署工具链、个人应用目录、备份恢复演练、防火墙写入/回滚、远程节点管理、同步任务计划、Docker 清理、SSH 加固、用户权限管理、hosts 解析管理、安全工具预案和磁盘挂载规划已覆盖；内核/重装类高风险动作仍保留为明确授权边界。"
 }
