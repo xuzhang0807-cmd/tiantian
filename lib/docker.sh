@@ -347,3 +347,88 @@ docker_safety_audit() {
     print_title "重启策略"
     docker ps -a -q | xargs -r docker inspect --format '{{.Name}} Restart={{.HostConfig.RestartPolicy.Name}}' 2>/dev/null | sed 's#^/##' || true
 }
+
+_docker_prune_snapshot() {
+    local backup_dir="$1"
+    mkdir -p "$backup_dir"
+    docker system df -v > "${backup_dir}/system-df.txt" 2>&1 || true
+    docker ps -a --no-trunc > "${backup_dir}/containers.txt" 2>&1 || true
+    docker images --digests --no-trunc > "${backup_dir}/images.txt" 2>&1 || true
+    docker volume ls > "${backup_dir}/volumes.txt" 2>&1 || true
+    docker network ls > "${backup_dir}/networks.txt" 2>&1 || true
+}
+
+# --- Docker 清理预案（只读） ---
+docker_prune_plan() {
+    local mode="${1:-safe}"
+    print_header "Docker 清理预案"
+    if ! has_cmd docker; then
+        print_warn "Docker 未安装"
+        return 1
+    fi
+
+    print_title "当前 Docker 空间"
+    docker system df 2>/dev/null || true
+    echo ""
+
+    print_title "将执行的命令"
+    case "$mode" in
+        safe)
+            echo "docker container prune -f        # 删除已停止容器"
+            echo "docker image prune -f            # 删除悬空镜像"
+            echo "docker builder prune -f          # 删除构建缓存"
+            ;;
+        all|aggressive)
+            echo "docker system prune -a --volumes -f  # 删除未使用容器/网络/镜像/卷，风险高"
+            print_warn "all 模式可能删除未挂载但仍有价值的 volume；只在确认无生产依赖后执行。"
+            ;;
+        *)
+            print_fail "未知模式: $mode；可用 safe|all"
+            return 1
+            ;;
+    esac
+    echo ""
+    print_info "真实执行: tt docker prune-run ${mode} --yes"
+}
+
+# --- Docker 清理执行（写入/删除，先快照） ---
+docker_prune_run() {
+    local mode="${1:-safe}" yes="${2:-}"
+    print_header "Docker 清理执行"
+    if ! has_cmd docker; then
+        print_warn "Docker 未安装"
+        return 1
+    fi
+    if [ "$yes" != "--yes" ]; then
+        print_warn "将删除 Docker 可再生资源；执行前会保存清理前清单。"
+        confirm "确认执行 Docker ${mode} 清理？" || { print_info "已取消"; return 0; }
+    fi
+
+    local backup_dir="${TT_BACKUP_ROOT}/docker-prune/$(date +%Y%m%d_%H%M%S)"
+    _docker_prune_snapshot "$backup_dir"
+    print_success "清理前清单已保存: $backup_dir"
+
+    print_title "清理前空间"
+    docker system df 2>/dev/null || true
+    echo ""
+
+    case "$mode" in
+        safe)
+            docker container prune -f
+            docker image prune -f
+            docker builder prune -f
+            ;;
+        all|aggressive)
+            docker system prune -a --volumes -f
+            ;;
+        *)
+            print_fail "未知模式: $mode；可用 safe|all"
+            return 1
+            ;;
+    esac
+
+    echo ""
+    print_title "清理后空间"
+    docker system df 2>/dev/null || true
+    print_success "Docker 清理完成"
+}

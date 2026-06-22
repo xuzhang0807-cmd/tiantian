@@ -24,6 +24,7 @@ source "${TT_HOME}/lib/tools.sh"
 source "${TT_HOME}/lib/ops.sh"
 source "${TT_HOME}/lib/tasks.sh"
 source "${TT_HOME}/lib/security.sh"
+source "${TT_HOME}/lib/ssh.sh"
 source "${TT_HOME}/lib/disk.sh"
 source "${TT_HOME}/lib/firewall.sh"
 source "${TT_HOME}/lib/bench.sh"
@@ -81,7 +82,8 @@ show_menu() {
     echo -e "  ${GREEN}15${NC}) 任务计划"
     echo -e "  ${GREEN}16${NC}) 安全工具"
     echo -e "  ${GREEN}17${NC}) 磁盘管理"
-    echo -e "  ${GREEN}18${NC}) 高级操作"
+    echo -e "  ${GREEN}18${NC}) SSH 管理"
+    echo -e "  ${GREEN}19${NC}) 高级操作"
     echo ""
     echo -e "  ${GREEN}0${NC}) 退出"
     echo ""
@@ -132,6 +134,8 @@ show_docker_menu() {
     echo -e "  ${GREEN}10${NC}) Compose 配置校验 ✅"
     echo -e "  ${GREEN}11${NC}) Docker 安全巡检 ✅"
     echo -e "  ${GREEN}12${NC}) Docker 配置/镜像源/IPv6 ✅"
+    echo -e "  ${GREEN}13${NC}) Docker 清理预案 ✅"
+    echo -e "  ${GREEN}14${NC}) Docker 安全清理 ⚠️"
     echo -e "  ${GREEN}0${NC}) 返回"
     echo ""
 }
@@ -168,6 +172,14 @@ docker_menu() {
                 ;;
             11) docker_safety_audit ;;
             12) docker_daemon_config ;;
+            13)
+                read -r -p "  清理模式 [safe|all]: " mode
+                docker_prune_plan "${mode:-safe}"
+                ;;
+            14)
+                read -r -p "  清理模式 [safe|all]: " mode
+                docker_prune_run "${mode:-safe}"
+                ;;
             0) break ;;
             *) echo -e "  ${RED}无效选项${NC}" ;;
         esac
@@ -347,6 +359,9 @@ main_loop() {
                 disk_menu
                 ;;
             18)
+                ssh_menu
+                ;;
+            19)
                 while true; do
                     show_advanced_menu
                     read -p "  tt/advanced> " achoice
@@ -410,6 +425,7 @@ run_command() {
         rw) cmd="tasks" ;;
         aq) cmd="security" ;;
         cp) cmd="disk" ;;
+        sshgl) cmd="ssh" ;;
         fg) cmd="coverage" ;;
         yy) cmd="apps" ;;
         测试|测速|cesu) cmd="bench" ;;
@@ -584,9 +600,26 @@ run_command() {
                 audit|safe|safety)
                     docker_safety_audit
                     ;;
-                *)
-                    echo "用法: tt docker [overview|containers|images|storage|check [project]|daemon|audit|up|down|restart|logs <project>|ps]"
+                prune-plan|clean-plan)
+                    docker_prune_plan "${2:-safe}"
                     ;;
+                prune-run|clean-run|prune)
+                    docker_prune_run "${2:-safe}" "${3:-}"
+                    ;;
+                *)
+                    echo "用法: tt docker [overview|containers|images|storage|check [project]|daemon|audit|prune-plan [safe|all]|prune-run [safe|all] --yes|up|down|restart|logs <project>|ps]"
+                    ;;
+            esac
+            ;;
+        ssh)
+            case "${1:-status}" in
+                status|show) ops_ssh_status ;;
+                harden-plan|plan) ssh_harden_plan "${2:-22}" ;;
+                backup) ssh_backup ;;
+                harden-write|write) ssh_harden_write "${2:-22}" "${3:-}" ;;
+                restore|rollback) ssh_restore "${2:-}" ;;
+                menu) ssh_menu ;;
+                *) echo "用法: tt ssh [status|harden-plan [port]|backup|harden-write [port] --yes|restore <backup_dir>|menu]" ;;
             esac
             ;;
         cluster|nodes)
@@ -784,12 +817,16 @@ run_command() {
             echo "  docker check [name] 校验 compose 配置"
             echo "  docker daemon       Docker 配置/镜像源/IPv6"
             echo "  docker audit        Docker 安全巡检"
+            echo "  docker prune-plan [safe|all]  Docker 清理预案"
+            echo "  docker prune-run safe --yes   Docker 安全清理（先保存清单）"
             echo "  docker logs <name>  查看日志"
             echo "  tools               系统工具菜单"
             echo "  tools resource      资源概览"
             echo "  tools ports         端口监听"
             echo "  tools clean         清理缓存"
             echo "  ops ssh|dns|cron|bbr|process|disk|services|tmux 常用运维只读检查"
+            echo "  ssh harden-plan [port] SSH 加固预案"
+            echo "  ssh harden-write [port] --yes 写入 SSH 加固（先备份，可 restore）"
             echo "  tasks list          Rsync 任务列表"
             echo "  tasks add/plan/run/schedule  远程同步任务管理"
             echo "  security status     fail2ban/ClamAV/SSH 安全状态"
@@ -819,7 +856,7 @@ run_command() {
             echo "拼音快捷命令:"
             echo "  jc=检测  zt=状态  bs=部署  sc=删除  bf=备份  hf=恢复"
             echo "  xm=项目  rq=容器  rj=日志  zs=证书  wg=网关  dk=端口"
-            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
+            echo "  yl=依赖  gj=工具  yw=运维  fh=防火墙  jq=集群  rw=任务  aq=安全  cp=磁盘  sshgl=SSH  yy=应用  fg=覆盖  cs=测试  cesu=网络测试"
             echo ""
             echo "不带参数运行进入交互菜单。"
             ;;

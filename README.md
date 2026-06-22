@@ -45,6 +45,10 @@ tt bench speed   # download speed test (Cloudflare/Hetzner ~100MB)
 tt bench streaming # streaming region unlock check (Netflix/YouTube/Disney+/etc)
 tt bench hardware # CPU/memory/disk/OpenSSL quick benchmark
 tt ops ssh       # read-only SSH security/listener/auth-key summary
+tt ssh harden-plan 22 # preview SSH hardening drop-in without writing
+tt ssh backup    # backup sshd_config and sshd_config.d
+tt ssh harden-write 22 --yes # write SSH hardening drop-in after explicit confirmation
+tt ssh restore <backup_dir> # restore SSH config from backup
 tt ops dns       # DNS resolver and name-resolution diagnostics
 tt ops cron      # crontab and systemd timer overview
 tt ops bbr       # TCP congestion / BBR status
@@ -90,6 +94,9 @@ tt docker storage # list volumes and networks
 tt docker check [project] # validate compose config without starting containers
 tt docker daemon # read-only Docker daemon/mirror/IPv6 config inspection
 tt docker audit # read-only Docker safety audit for low-memory hosts
+tt docker prune-plan safe # preview stopped-container/dangling-image/build-cache cleanup
+tt docker prune-run safe --yes # run safe Docker cleanup after saving a pre-clean snapshot
+tt docker prune-plan all # preview aggressive system prune including unused volumes
 tt cluster status # read-only cluster/node reachability scaffold
 tt coverage      # Kejilion-inspired feature coverage matrix
 tt restore plan <backup.tar.gz> # inspect restore plan without touching production
