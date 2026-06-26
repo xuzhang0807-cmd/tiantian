@@ -231,12 +231,14 @@ patch_one() {
   require_file "$file"
   insert_snippet "$file"
   replace_function_body "$file" install_ldnmp_conf $'\n  tt_nginx_apply_base_templates\n'
+  replace_function_body "$file" ldnmp_Proxy $'\n  clear\n  webname="反向代理-IP+端口"\n  yuming="${1:-}"\n  reverseproxy="${2:-}"\n  port="${3:-}"\n\n  send_stats "安装$webname"\n  echo "开始部署 $webname"\n  if [ -z "$yuming" ]; then\n    add_yuming\n  fi\n\n  check_ip_and_get_access_port "$yuming"\n\n  if [ -z "$reverseproxy" ]; then\n    read -e -p "请输入你的反代IP (回车默认本机IP 127.0.0.1): " reverseproxy\n    reverseproxy=${reverseproxy:-127.0.0.1}\n  fi\n\n  if [ -z "$port" ]; then\n    read -e -p "请输入你的反代端口: " port\n  fi\n\n  nginx_install_status\n  install_ssltls\n  certs_status\n\n  tt_nginx_patch_copy "$tt_nginx_template_dir/map.conf" /home/web/conf.d/map.conf\n  tt_nginx_apply_site_template "$yuming" "$reverseproxy:$port"\n  update_nginx_listen_port "$yuming" "$access_port"\n\n  if docker ps --format "{{.Names}}" 2>/dev/null | grep -qx nginx; then\n    docker exec nginx nginx -t\n    docker exec nginx nginx -s reload\n  fi\n  nginx_web_on\n'
   patch_download_lines "$file"
   patch_update_entry "$file"
   chmod +x "$file"
   bash -n "$file"
   grep -q "TT_NGINX_PATCH_BEGIN" "$file" || return 1
   grep -q "tt_nginx_apply_base_templates" "$file" || return 1
+  grep -q "tt_nginx_apply_site_template" "$file" || return 1
 }
 
 save_clean_baseline() {
