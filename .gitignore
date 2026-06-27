@@ -1,0 +1,7 @@
+/backups/
+/cache/
+/logs/
+/state/
+*.bak
+*.tmp
+.DS_Store

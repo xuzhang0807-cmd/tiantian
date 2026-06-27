@@ -1,0 +1,526 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="/opt/tiantian"
+TEMPLATE_DIR="$ROOT/templates/home-web"
+BACKUP_DIR="$ROOT/backups"
+STATE_DIR="$ROOT/state"
+LOG_DIR="$ROOT/logs"
+UPSTREAM_URL="${UPSTREAM_URL:-https://raw.githubusercontent.com/kejilion/sh/main/kejilion.sh}"
+TARGETS=("/usr/local/bin/k" "$HOME/kejilion.sh")
+MARK_BEGIN="# >>> TT_NGINX_PATCH_BEGIN"
+MARK_END="# <<< TT_NGINX_PATCH_END"
+VERSION="1.1.0"
+CURRENT_STAGE="初始化"
+LAST_ERROR=""
+ROLLBACK_DONE="no"
+
+mkdir -p "$BACKUP_DIR" "$STATE_DIR" "$LOG_DIR"
+
+log() { printf '%s\n' "$*"; }
+warn() { printf 'WARN: %s\n' "$*" >&2; }
+fail() { LAST_ERROR="$*"; printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+now() { date +%Y%m%d-%H%M%S; }
+
+stage() {
+  CURRENT_STAGE="$1"
+}
+
+require_file() {
+  [ -f "$1" ] || fail "缺少文件: $1"
+}
+
+is_patched() {
+  grep -q "TT_NGINX_PATCH_BEGIN" /usr/local/bin/k 2>/dev/null
+}
+
+check_resources() {
+  local avail_mb mem_mb
+  avail_mb=$(df -Pm /opt /root 2>/dev/null | awk 'NR>1 {if(min==0 || $4<min) min=$4} END{print min+0}')
+  mem_mb=$(free -m | awk '/Mem:/ {print $7+0}')
+  [ "$avail_mb" -ge 512 ] || fail "磁盘空间不足: ${avail_mb}MB 可用，至少需要 512MB"
+  [ "$mem_mb" -ge 128 ] || warn "可用内存偏低: ${mem_mb}MB"
+}
+
+check_templates() {
+  local missing=0 f
+  for f in nginx.conf docker-compose.yml default.conf map.conf reality-relay.conf; do
+    if [ ! -f "$TEMPLATE_DIR/$f" ]; then
+      warn "缺少模板: $TEMPLATE_DIR/$f"
+      missing=1
+    fi
+  done
+  [ "$missing" -eq 0 ] || fail "模板不完整"
+}
+
+prepare_backup_dir() {
+  local dir="$1"
+  rm -rf "$dir.tmp"
+  mkdir -p "$dir.tmp/home-web"
+}
+
+capture_backup_to_tmp() {
+  local dir="$1"
+  local target path
+  for target in "${TARGETS[@]}"; do
+    [ -f "$target" ] && cp -a "$target" "$dir.tmp/$(basename "$target").bak"
+  done
+  for path in /home/web/nginx.conf /home/web/docker-compose.yml /home/web/conf.d/default.conf /home/web/conf.d/map.conf /home/web/stream.d/reality-relay.conf; do
+    [ -e "$path" ] && cp -a "$path" "$dir.tmp/home-web/$(basename "$path")"
+  done
+}
+
+commit_backup_dir() {
+  local dir="$1"
+  rm -rf "$dir"
+  mv "$dir.tmp" "$dir"
+}
+
+ensure_original_backup() {
+  local original="$BACKUP_DIR/original"
+  [ -d "$original" ] && return 0
+  prepare_backup_dir "$original"
+  capture_backup_to_tmp "$original"
+  commit_backup_dir "$original"
+}
+
+backup_latest() {
+  local latest="$BACKUP_DIR/latest"
+  prepare_backup_dir "$latest"
+  capture_backup_to_tmp "$latest"
+  commit_backup_dir "$latest"
+  printf '%s\n' "$latest" > "$STATE_DIR/last_backup"
+}
+
+restore_from_dir() {
+  local dir="$1"
+  [ -n "$dir" ] && [ -d "$dir" ] || fail "找不到备份目录: ${dir:-空}"
+  [ -f "$dir/k.bak" ] && cp -f "$dir/k.bak" /usr/local/bin/k
+  [ -f "$dir/kejilion.sh.bak" ] && cp -f "$dir/kejilion.sh.bak" "$HOME/kejilion.sh"
+  [ -f "$dir/home-web/nginx.conf" ] && cp -f "$dir/home-web/nginx.conf" /home/web/nginx.conf
+  [ -f "$dir/home-web/docker-compose.yml" ] && cp -f "$dir/home-web/docker-compose.yml" /home/web/docker-compose.yml
+  [ -f "$dir/home-web/default.conf" ] && mkdir -p /home/web/conf.d && cp -f "$dir/home-web/default.conf" /home/web/conf.d/default.conf
+  [ -f "$dir/home-web/map.conf" ] && mkdir -p /home/web/conf.d && cp -f "$dir/home-web/map.conf" /home/web/conf.d/map.conf
+  [ -f "$dir/home-web/reality-relay.conf" ] && mkdir -p /home/web/stream.d && cp -f "$dir/home-web/reality-relay.conf" /home/web/stream.d/reality-relay.conf
+  chmod +x /usr/local/bin/k "$HOME/kejilion.sh" 2>/dev/null || true
+}
+
+snippet_file() {
+  local out="$1"
+  cat > "$out" <<'SNIPPET'
+# >>> TT_NGINX_PATCH_BEGIN
+# TianTian nginx patch: keep kejilion flow, replace nginx overwrite templates with current /home/web SNI model.
+tt_nginx_patch_root="/opt/tiantian"
+tt_nginx_template_dir="$tt_nginx_patch_root/templates/home-web"
+
+tt_nginx_patch_copy() {
+    local src="$1"
+    local dst="$2"
+    if [ ! -f "$src" ]; then
+        echo "TT nginx patch missing template: $src" >&2
+        return 1
+    fi
+    mkdir -p "$(dirname "$dst")"
+    cp -f "$src" "$dst"
+}
+
+tt_nginx_apply_base_templates() {
+    mkdir -p /home/web/html /home/web/mysql /home/web/certs /home/web/conf.d /home/web/stream.d /home/web/redis /home/web/log/nginx /home/web/letsencrypt
+    tt_nginx_patch_copy "$tt_nginx_template_dir/nginx.conf" /home/web/nginx.conf
+    tt_nginx_patch_copy "$tt_nginx_template_dir/default.conf" /home/web/conf.d/default.conf
+    tt_nginx_patch_copy "$tt_nginx_template_dir/map.conf" /home/web/conf.d/map.conf
+    tt_nginx_patch_copy "$tt_nginx_template_dir/reality-relay.conf" /home/web/stream.d/reality-relay.conf
+    tt_nginx_patch_copy "$tt_nginx_template_dir/docker-compose.yml" /home/web/docker-compose.yml
+    default_server_ssl >/dev/null 2>&1 || true
+}
+
+tt_nginx_apply_site_template() {
+    local domain="$1"
+    local backend="$2"
+    local conf="/home/web/conf.d/${domain}.conf"
+    [ -n "$domain" ] || return 1
+    [ -n "$backend" ] || backend="127.0.0.1:80"
+    mkdir -p /home/web/conf.d
+    cat > "$conf" <<EOF
+upstream tt_backend_${domain//[^A-Za-z0-9]/_} {
+    server ${backend};
+    keepalive 64;
+}
+
+server {
+    listen 80;
+    server_name ${domain};
+
+    location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root /var/www/letsencrypt;
+    }
+
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+
+server {
+    listen 127.0.0.1:4443 ssl;
+    listen 127.0.0.1:4443 quic;
+    server_name ${domain};
+
+    ssl_certificate /etc/nginx/certs/${domain}_cert.pem;
+    ssl_certificate_key /etc/nginx/certs/${domain}_key.pem;
+
+    location / {
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_pass http://tt_backend_${domain//[^A-Za-z0-9]/_};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        add_header Alt-Svc 'h3=":443"; ma=86400';
+    }
+
+    client_max_body_size 1000m;
+}
+EOF
+}
+
+tt_nginx_validate_live() {
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx nginx; then
+        docker exec nginx nginx -t
+    fi
+}
+# <<< TT_NGINX_PATCH_END
+SNIPPET
+}
+
+strip_old_patch() {
+  local file="$1" tmp
+  tmp=$(mktemp)
+  awk -v begin="$MARK_BEGIN" -v end="$MARK_END" '
+    index($0, begin) {skip=1; next}
+    index($0, end) {skip=0; next}
+    !skip {print}
+  ' "$file" > "$tmp"
+  cat "$tmp" > "$file"
+  rm -f "$tmp"
+}
+
+insert_snippet() {
+  local file="$1" snip
+  snip=$(mktemp)
+  snippet_file "$snip"
+  strip_old_patch "$file"
+  awk -v snip="$snip" '
+    !done && /^install_ldnmp_conf\(\)[[:space:]]*\{/ {
+      while ((getline line < snip) > 0) print line
+      close(snip)
+      done=1
+    }
+    {print}
+  ' "$file" > "$file.tmp.tt"
+  mv "$file.tmp.tt" "$file"
+  rm -f "$snip"
+}
+
+replace_function_body() {
+  local file="$1" func="$2" body="$3"
+  python3 - "$file" "$func" "$body" <<'PY'
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+func = sys.argv[2]
+body = sys.argv[3]
+text = path.read_text()
+needle = f"{func}() {{"
+start = text.find(needle)
+if start < 0:
+    raise SystemExit(f"missing function {func}")
+brace = text.find('{', start)
+depth = 0
+end = None
+for i in range(brace, len(text)):
+    ch = text[i]
+    if ch == '{':
+        depth += 1
+    elif ch == '}':
+        depth -= 1
+        if depth == 0:
+            end = i + 1
+            break
+if end is None:
+    raise SystemExit(f"unclosed function {func}")
+replacement = f"{func}() {{\n{body}\n}}"
+path.write_text(text[:start] + replacement + text[end:])
+PY
+}
+
+patch_download_lines() {
+  local file="$1"
+  python3 - "$file" <<'PY'
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1])
+s = p.read_text()
+repls = {
+    r'wget -O /home/web/nginx\.conf[^\n]*nginx10\.conf[^\n]*': 'tt_nginx_patch_copy "$tt_nginx_template_dir/nginx.conf" /home/web/nginx.conf',
+    r'wget -O /home/web/conf\.d/default\.conf[^\n]*default1[01]\.conf[^\n]*': 'tt_nginx_patch_copy "$tt_nginx_template_dir/default.conf" /home/web/conf.d/default.conf',
+    r'wget -O /home/web/conf\.d/map\.conf[^\n]*map\.conf[^\n]*': 'tt_nginx_patch_copy "$tt_nginx_template_dir/map.conf" /home/web/conf.d/map.conf',
+    r'wget -O /home/web/docker-compose\.yml[^\n]*LNMP-docker-compose-10\.yml[^\n]*': 'tt_nginx_patch_copy "$tt_nginx_template_dir/docker-compose.yml" /home/web/docker-compose.yml',
+}
+for pat, repl in repls.items():
+    s = re.sub(pat, repl, s)
+p.write_text(s)
+PY
+}
+
+patch_update_entry() {
+  local file="$1"
+  python3 - "$file" <<'PY'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+s = p.read_text()
+old = '00) kejilion_update ;;'
+new = '00) if command -v kp >/dev/null 2>&1; then kp update; else kejilion_update; fi ;;'
+s = s.replace(old, new)
+s = s.replace('SH_Update_task="$SH_Update_task; cp -f ~/kejilion.sh /usr/local/bin/k 2>/dev/null; ln -sf /usr/local/bin/k /usr/bin/k 2>/dev/null"',
+              'SH_Update_task="$SH_Update_task; if command -v kp >/dev/null 2>&1; then kp install ~/kejilion.sh >/tmp/kp-cron.log 2>&1 || exit 1; fi; cp -f ~/kejilion.sh /usr/local/bin/k 2>/dev/null; ln -sf /usr/local/bin/k /usr/bin/k 2>/dev/null"')
+p.write_text(s)
+PY
+}
+
+patch_one() {
+  local file="$1"
+  require_file "$file"
+  insert_snippet "$file"
+  replace_function_body "$file" install_ldnmp_conf $'\n  tt_nginx_apply_base_templates\n'
+  patch_download_lines "$file"
+  patch_update_entry "$file"
+  chmod +x "$file"
+  bash -n "$file"
+  grep -q "TT_NGINX_PATCH_BEGIN" "$file" || return 1
+  grep -q "tt_nginx_apply_base_templates" "$file" || return 1
+}
+
+save_clean_baseline() {
+  local source_file="$1"
+  local baseline="$ROOT/cache/kejilion-clean.sh"
+  [ -f "$source_file" ] || return 0
+  mkdir -p "$ROOT/cache"
+  if [ "$(readlink -f "$source_file")" != "$(readlink -f "$baseline" 2>/dev/null || true)" ]; then
+    cp -f "$source_file" "$baseline"
+  fi
+  sha256sum "$baseline" | awk '{print $1}' > "$STATE_DIR/clean_sha"
+}
+
+validate_scripts() {
+  bash -n /opt/tiantian/bin/kp
+  [ -f /usr/local/bin/k ] && bash -n /usr/local/bin/k
+  [ -f "$HOME/kejilion.sh" ] && bash -n "$HOME/kejilion.sh"
+  grep -q "TT_NGINX_PATCH_BEGIN" /usr/local/bin/k 2>/dev/null || fail "补丁标记未写入 /usr/local/bin/k"
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx nginx; then
+    docker exec nginx nginx -t
+  fi
+}
+
+install_patch() {
+  local explicit_source="${1:-}"
+  local ts
+  ts=$(now)
+  ROLLBACK_DONE="no"
+
+  stage "检测"
+  require_file /opt/tiantian/bin/kp
+  require_file /usr/local/bin/k
+  require_file "$HOME/kejilion.sh"
+  check_resources
+  check_templates
+  log "状态: $(is_patched && echo '已安装，准备重装刷新' || echo '未安装，准备安装')"
+
+  stage "备份"
+  ensure_original_backup
+  backup_latest
+  log "备份: $BACKUP_DIR/latest"
+  log "原始: $BACKUP_DIR/original"
+
+  stage "执行"
+  if [ -n "$explicit_source" ] && [ -f "$explicit_source" ]; then
+    save_clean_baseline "$explicit_source"
+  elif ! is_patched; then
+    save_clean_baseline /usr/local/bin/k
+  fi
+  for target in "${TARGETS[@]}"; do
+    [ -f "$target" ] && patch_one "$target"
+  done
+  ln -sf /usr/local/bin/k /usr/bin/k 2>/dev/null || true
+  printf '%s\n' "$ts" > "$STATE_DIR/last_apply"
+  log "状态: 脚本已写入"
+
+  stage "验收"
+  validate_scripts
+  log "状态: 成功"
+  log "检测: 通过"
+  log "备份: $BACKUP_DIR/latest"
+}
+
+restore_latest() {
+  stage "检测"
+  local dir="$BACKUP_DIR/latest"
+  [ -d "$dir" ] || fail "没有可恢复备份: $dir"
+  log "状态: 准备恢复"
+
+  stage "执行"
+  restore_from_dir "$dir"
+  log "备份: $dir"
+
+  stage "验收"
+  bash -n /usr/local/bin/k
+  bash -n "$HOME/kejilion.sh"
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx nginx; then
+    docker exec nginx nginx -t
+  fi
+  log "状态: 恢复成功"
+  log "检测: 通过"
+  log "备份: $dir"
+}
+
+rollback_after_failure() {
+  local dir="$BACKUP_DIR/latest"
+  if [ -d "$dir" ]; then
+    restore_from_dir "$dir" || true
+    ROLLBACK_DONE="yes"
+  fi
+}
+
+fetch_upstream() {
+  local out="$1"
+  curl -fsSL --connect-timeout 10 --max-time 60 "$UPSTREAM_URL" -o "$out"
+  [ -s "$out" ] && head -1 "$out" | grep -q '^#!/bin/bash'
+}
+
+risk_scan() {
+  local old="$1" new="$2" diff="$3"
+  diff -u "$old" "$new" > "$diff" || true
+  if grep -E 'install_ldnmp_conf|update_docker_compose_with_db_creds|ldnmp_wp|ldnmp_Proxy|reverse-proxy|nginx10\.conf|default1[01]\.conf|LNMP-docker-compose|stream\.d|conf\.d/\$yuming' "$diff" >/dev/null; then
+    return 2
+  fi
+  return 0
+}
+
+update_upstream() {
+  stage "检测"
+  check_resources
+  local ts tmp diff report baseline
+  ts=$(now)
+  tmp=$(mktemp "$ROOT/cache/kejilion-new.XXXXXX")
+  baseline="$ROOT/cache/kejilion-clean.sh"
+  [ -f "$baseline" ] || baseline="${TARGETS[0]}"
+  diff="$LOG_DIR/upstream-diff-$ts.patch"
+  report="$LOG_DIR/update-report-$ts.txt"
+  fetch_upstream "$tmp" || fail "下载 kejilion 上游失败"
+  local old_sha new_sha
+  old_sha=$(sha256sum "$baseline" 2>/dev/null | awk '{print $1}')
+  new_sha=$(sha256sum "$tmp" | awk '{print $1}')
+  if [ "$old_sha" = "$new_sha" ]; then
+    rm -f "$tmp"
+    log "状态: 上游无变化"
+    log "检测: 通过"
+    log "备份: 未变更"
+    return 0
+  fi
+
+  stage "备份"
+  ensure_original_backup
+  backup_latest
+  log "备份: $BACKUP_DIR/latest"
+
+  stage "执行"
+  if risk_scan "$baseline" "$tmp" "$diff"; then
+    :
+  else
+    local rc=$?
+    if [ "$rc" -eq 2 ]; then
+      {
+        echo "TT nginx patch update blocked: upstream changed nginx-related sections"
+        echo "old_sha=$old_sha"
+        echo "new_sha=$new_sha"
+        echo "diff=$diff"
+        grep -nE 'install_ldnmp_conf|update_docker_compose_with_db_creds|ldnmp_wp|ldnmp_Proxy|nginx10\.conf|default1[01]\.conf|LNMP-docker-compose|stream\.d|conf\.d/\$yuming' "$diff" | head -80 || true
+      } | tee "$report"
+      rm -f "$tmp"
+      fail "上游改动触及 nginx 相关区域，已阻止自动更新；详情: $report"
+    fi
+  fi
+  cp -f "$tmp" "$HOME/kejilion.sh"
+  cp -f "$tmp" /usr/local/bin/k
+  save_clean_baseline "$tmp"
+  rm -f "$tmp"
+  install_patch "$ROOT/cache/kejilion-clean.sh"
+  echo "updated_and_patched old_sha=$old_sha new_sha=$new_sha report=$report" > "$report"
+}
+
+status() {
+  local patched="no" k_ok="no" sh_ok="no" nginx_ok="skip" upstream="unknown" backup="none"
+  is_patched && patched="yes"
+  [ -f /usr/local/bin/k ] && bash -n /usr/local/bin/k >/dev/null 2>&1 && k_ok="yes"
+  [ -f "$HOME/kejilion.sh" ] && bash -n "$HOME/kejilion.sh" >/dev/null 2>&1 && sh_ok="yes"
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx nginx; then
+    if docker exec nginx nginx -t >/tmp/kp-nginx-status.log 2>&1; then nginx_ok="yes"; else nginx_ok="no"; fi
+  fi
+  [ -d "$BACKUP_DIR/latest" ] && backup="$BACKUP_DIR/latest"
+  echo "状态: $([ "$patched" = yes ] && echo '已安装' || echo '未安装')"
+  echo "检测: k=$k_ok kejilion=$sh_ok nginx=$nginx_ok"
+  echo "备份: $backup"
+}
+
+check_only() {
+  local tmp old_sha new_sha baseline
+  tmp=$(mktemp "$ROOT/cache/kejilion-check.XXXXXX")
+  baseline="$ROOT/cache/kejilion-clean.sh"
+  [ -f "$baseline" ] || baseline=/usr/local/bin/k
+  if fetch_upstream "$tmp"; then
+    old_sha=$(sha256sum "$baseline" 2>/dev/null | awk '{print $1}')
+    new_sha=$(sha256sum "$tmp" | awk '{print $1}')
+    if [ "$old_sha" = "$new_sha" ]; then
+      echo "状态: 上游无变化"
+    else
+      echo "状态: 上游有变化"
+    fi
+    rm -f "$tmp"
+  else
+    rm -f "$tmp"
+    echo "状态: 上游检测失败"
+  fi
+  status
+}
+
+run_with_failure_report() {
+  local cmd="$1" rc=0
+  set +e
+  "$cmd" "${@:2}"
+  rc=$?
+  set -e
+  if [ "$rc" -ne 0 ]; then
+    local reason="${LAST_ERROR:-未知原因，详见上方命令输出}"
+    case "$cmd" in
+      install_patch|update_upstream)
+        if [ "$CURRENT_STAGE" != "检测" ]; then
+          rollback_after_failure
+        fi
+        ;;
+    esac
+    printf '\n[失败]\n'
+    echo "状态: 失败"
+    echo "检测: 阶段=$CURRENT_STAGE；原因=$reason"
+    echo "备份: $BACKUP_DIR/latest"
+    [ "$ROLLBACK_DONE" = "yes" ] && echo "回滚: 已尝试恢复 latest" || echo "回滚: 未执行或无可用备份"
+    exit "$rc"
+  fi
+}
+
+case "${1:-install}" in
+  install|apply|patch) run_with_failure_report install_patch "${2:-}" ;;
+  status|s) status ;;
+  check|c) check_only ;;
+  restore|rollback|r) run_with_failure_report restore_latest ;;
+  update|up) run_with_failure_report update_upstream ;;
+  *) echo "usage: kp [install|status|check|restore|update]"; exit 2 ;;
+esac
