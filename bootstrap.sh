@@ -35,8 +35,12 @@ main() {
   mkdir -p "$WORKDIR"
 
   echo "状态: 正在拉取 TT 项目"
-  curl -fsSL --connect-timeout 10 --max-time 120 "$TARBALL_URL" -o "$WORKDIR/tiantian.tar.gz"
-  tar -xzf "$WORKDIR/tiantian.tar.gz" -C "$WORKDIR" --strip-components=1
+  if command -v git >/dev/null 2>&1; then
+    git clone --depth 1 --branch "$BRANCH" "https://github.com/${REPO}.git" "$WORKDIR" >/dev/null 2>&1
+  else
+    curl -fsSL --connect-timeout 10 --max-time 120 "${TARBALL_URL}?t=$(date +%s)" -o "$WORKDIR/tiantian.tar.gz"
+    tar -xzf "$WORKDIR/tiantian.tar.gz" -C "$WORKDIR" --strip-components=1
+  fi
 
   echo "状态: 正在启动安装器"
   cd "$WORKDIR"
