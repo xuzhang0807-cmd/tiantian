@@ -43,8 +43,4 @@ install_files
 verify
 
 echo
-if [ -t 0 ]; then
-  exec tt
-else
-  echo "非交互环境已跳过面板。交互使用请运行: tt"
-fi
+exec tt
