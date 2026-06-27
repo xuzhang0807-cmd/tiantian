@@ -4,13 +4,25 @@ TT 是一个给 kejilion 脚本使用的窄补丁层：不替换 kejilion 主入
 
 ## 安装
 
+### 推荐：一条命令拉取并启动
+
 ```bash
-git clone <repo-url> tiantian
+bash <(curl -fsSL https://raw.githubusercontent.com/xuzhang0807-cmd/tiantian/main/bootstrap.sh)
+```
+
+这条命令会自动拉取 GitHub 项目、安装 `tt/kp`，然后直接进入首次询问或面板。
+
+### 手动 clone 方式
+
+`git clone` 本身不会自动执行脚本，这是 Git 的安全机制。手动方式需要：
+
+```bash
+git clone https://github.com/xuzhang0807-cmd/tiantian.git
 cd tiantian
 bash install.sh
 ```
 
-安装后使用：
+之后使用：
 
 ```bash
 tt
